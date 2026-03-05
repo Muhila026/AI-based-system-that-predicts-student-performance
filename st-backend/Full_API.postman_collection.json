@@ -1,0 +1,491 @@
+{
+  "info": {
+    "name": "Full Backend API",
+    "description": "Complete Postman collection for all backend APIs (Auth, Courses, Teachers, Chat, Content, Admin, Student Performance ML, Pipeline, Health).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "token", "value": "" },
+    { "key": "courseId", "value": "" },
+    { "key": "scheduleId", "value": "" },
+    { "key": "chatId", "value": "" },
+    { "key": "teacher_id", "value": "" },
+    { "key": "email", "value": "student@edu.com" }
+  ],
+  "item": [
+    {
+      "name": "Health & Root",
+      "item": [
+        {
+          "name": "Root",
+          "request": { "method": "GET", "url": "{{base_url}}/" }
+        },
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/health" }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"test@edu.com\",\n  \"password\": \"password123\",\n  \"phoneNumber\": \"1234567890\",\n  \"userRole\": \"student\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@edu.com\",\n  \"password\": \"student123\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Login (Super Admin - Default)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"cloudcampus2002@gmail.com\",\n  \"password\": \"Muhila@2002\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@edu.com\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@edu.com\",\n  \"otpCode\": \"1234\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/verify-otp"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@edu.com\",\n  \"resetToken\": \"\",\n  \"newPassword\": \"newpass123\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/reset-password"
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@edu.com\",\n  \"otpCode\": \"1234\"\n}" },
+            "url": "{{base_url}}/api/v1/auth/verify-email"
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/resend-otp?email=student@edu.com" }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/auth/users"
+          }
+        },
+        {
+          "name": "Get User by Email",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/auth/users/{{email}}"
+          }
+        },
+        {
+          "name": "Auth Health",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/auth/health" }
+        }
+      ]
+    },
+    {
+      "name": "Teachers",
+      "item": [
+        { "name": "List Teachers", "request": { "method": "GET", "url": "{{base_url}}/api/v1/teachers/" } },
+        {
+          "name": "Create Teacher",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Smith\",\n  \"title\": \"Professor\"\n}" },
+            "url": "{{base_url}}/api/v1/teachers/"
+          }
+        },
+        { "name": "Get Teacher by ID", "request": { "method": "GET", "url": "{{base_url}}/api/v1/teachers/{{teacher_id}}" } }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        { "name": "List Courses", "request": { "method": "GET", "url": "{{base_url}}/api/v1/courses/" } },
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseTitle\": \"Math 101\",\n  \"teacherId\": \"tid-1\"\n}" },
+            "url": "{{base_url}}/api/v1/courses/"
+          }
+        },
+        { "name": "Get Course by ID", "request": { "method": "GET", "url": "{{base_url}}/api/v1/courses/{{courseId}}" } }
+      ]
+    },
+    {
+      "name": "Course Lessons",
+      "item": [
+        { "name": "List Lessons", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-lessons/?courseId={{courseId}}" } },
+        {
+          "name": "Create Lesson",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"lessonName\": \"Lesson 1\",\n  \"courseId\": \"{{courseId}}\"\n}" },
+            "url": "{{base_url}}/api/v1/course-lessons/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Schedules",
+      "item": [
+        { "name": "List Schedules", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-schedules/?courseId={{courseId}}" } },
+        {
+          "name": "Create Schedule",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"date\": \"2025-10-01\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"10:00\"\n}" },
+            "url": "{{base_url}}/api/v1/course-schedules/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Attendance",
+      "item": [
+        { "name": "List Attendance", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-attendance/?scheduleId={{scheduleId}}" } },
+        { "name": "Attendance Summary", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-attendance/summary/{{scheduleId}}" } },
+        {
+          "name": "Mark Attendance",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseScheduleId\": \"{{scheduleId}}\",\n  \"userEmail\": \"student@edu.com\",\n  \"isAttended\": true\n}" },
+            "url": "{{base_url}}/api/v1/course-attendance/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Enquiries",
+      "item": [
+        { "name": "List Enquiries", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-enquiries/?courseId={{courseId}}" } },
+        {
+          "name": "Create Enquiry",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"userEmail\": \"student@edu.com\",\n  \"subject\": \"Question\"\n}" },
+            "url": "{{base_url}}/api/v1/course-enquiries/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Enrollments",
+      "item": [
+        { "name": "List Enrollments", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-enrollments/?courseId={{courseId}}" } },
+        {
+          "name": "Create Enrollment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"userEmail\": \"student@edu.com\"\n}" },
+            "url": "{{base_url}}/api/v1/course-enrollments/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Payments",
+      "item": [
+        { "name": "List Payments", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-payments/?userEmail=student@edu.com" } },
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"userEmail\": \"student@edu.com\",\n  \"amount\": 100\n}" },
+            "url": "{{base_url}}/api/v1/course-payments/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Theory & Techniques",
+      "item": [
+        { "name": "List Theory", "request": { "method": "GET", "url": "{{base_url}}/api/v1/theory/" } },
+        { "name": "List Techniques", "request": { "method": "GET", "url": "{{base_url}}/api/v1/techniques/" } }
+      ]
+    },
+    {
+      "name": "Challenges",
+      "item": [
+        { "name": "List Challenges", "request": { "method": "GET", "url": "{{base_url}}/api/v1/challenges/" } },
+        {
+          "name": "Create Challenge",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"challengeName\": \"Quiz 1\",\n  \"description\": \"Test\",\n  \"level\": \"easy\",\n  \"points\": 10\n}" },
+            "url": "{{base_url}}/api/v1/challenges/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chats",
+      "item": [
+        {
+          "name": "List My Chats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/chats/"
+          }
+        },
+        {
+          "name": "Create Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"direct\",\n  \"name\": \"My Chat\"\n}" },
+            "url": "{{base_url}}/api/v1/chats/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/messages/?chatId={{chatId}}"
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"chatId\": \"{{chatId}}\",\n  \"senderEmail\": \"student@edu.com\",\n  \"content\": \"Hello\"\n}" },
+            "url": "{{base_url}}/api/v1/messages/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/notifications/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Dashboard Statistics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/admin/dashboard/statistics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Study Logs (ML)",
+      "item": [
+        {
+          "name": "Create Study Log",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userEmail\": \"student@edu.com\",\n  \"courseId\": \"C1\",\n  \"studyHours\": 2.5,\n  \"studyDate\": \"2025-10-01\",\n  \"notes\": \"Evening study\"\n}" },
+            "url": "{{base_url}}/api/v1/study-logs/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Participation (ML)",
+      "item": [
+        {
+          "name": "Create Participation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userEmail\": \"student@edu.com\",\n  \"courseId\": \"C1\",\n  \"scheduleId\": \"S1\",\n  \"participationScore\": 4.5\n}" },
+            "url": "{{base_url}}/api/v1/participation/"
+          }
+        },
+        {
+          "name": "Set Participation Rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"student_id\": 1001,\n  \"teacher_rating\": 4.5\n}" },
+            "url": "{{base_url}}/api/v1/participation/rating"
+          }
+        },
+        {
+          "name": "Get Participation for Student",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/participation/student/1001"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prediction (ML Manual)",
+      "item": [
+        {
+          "name": "Predict Manual (4 features)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"weeklySelfStudyHours\": 15.0,\n  \"attendancePercentage\": 88.0,\n  \"classParticipation\": 75.0,\n  \"totalScore\": 82.0\n}" },
+            "url": "{{base_url}}/api/v1/prediction/manual"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assignment Submissions (ML)",
+      "item": [
+        {
+          "name": "Bulk Upload Marks",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"assignment_id\": 1,\n  \"submissions\": [\n    {\n      \"student_id\": 1001,\n      \"marks\": 78,\n      \"max_marks\": 100,\n      \"userEmail\": \"student@edu.com\"\n    }\n  ]\n}" },
+            "url": "{{base_url}}/api/v1/assignment-submissions/bulk"
+          }
+        },
+        {
+          "name": "My Total Score",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/assignment-submissions/me/total-score"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance (ML)",
+      "item": [
+        {
+          "name": "My Attendance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/attendance/me"
+          }
+        },
+        {
+          "name": "Student List",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/attendance/student-list"
+          }
+        },
+        {
+          "name": "Upload Daily Attendance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"present_student_ids\": [1001],\n  \"date\": \"2025-10-01\"\n}" },
+            "url": "{{base_url}}/api/v1/attendance/daily"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pipeline (ML - No Manual Form)",
+      "item": [
+        {
+          "name": "My ML Features",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/pipeline/me/ml-features"
+          }
+        },
+        {
+          "name": "My Predicted Grade",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/v1/pipeline/me/predicted-grade"
+          }
+        }
+      ]
+    }
+  ]
+}
