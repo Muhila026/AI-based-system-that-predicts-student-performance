@@ -10,6 +10,7 @@ from app.jwt_util import create_access_token
 from app.email_util import send_otp_email, send_password_reset_otp_email
 from app.auth import get_current_user, require_role
 from datetime import datetime
+import re
 import uuid
 import random
 import logging
@@ -67,11 +68,14 @@ async def register(request: RegisterRequest):
 @router.post("/login")
 async def login(request: LoginRequest):
     db = get_database()
-    logger.info(f"Login attempt for email: {request.email}")
-
-    user = await db.users.find_one({"email": request.email})
+    email_input = (request.email or "").strip()
+    if not email_input:
+        raise HTTPException(status_code=400, detail="Email is required")
+    # Case-insensitive email lookup so Admin/Teacher login works regardless of email case
+    email_regex = {"$regex": f"^{re.escape(email_input)}$", "$options": "i"}
+    user = await db.users.find_one({"email": email_regex})
     if not user:
-        raise HTTPException(status_code=404, detail=f"User not found with email: {request.email}")
+        raise HTTPException(status_code=404, detail="User not found with this email")
 
     if not user.get("isActive", True):
         raise HTTPException(status_code=401, detail="Account is deactivated")
@@ -79,12 +83,17 @@ async def login(request: LoginRequest):
     if not verify_password(request.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid password")
 
-    role = user.get("user_role", "user")
+    role = (user.get("user_role") or "user").strip().lower()
+    if role not in ("admin", "teacher", "student", "user"):
+        role = "student"
+    # Always return "student" for "user" so frontend gets a single role value
+    if role == "user":
+        role = "student"
     token = create_access_token(user["email"], role)
 
     now = datetime.utcnow().isoformat()
     await db.users.update_one(
-        {"email": request.email},
+        {"email": user["email"]},
         {"$set": {"lastLoginAt": now, "updatedAt": now}}
     )
 

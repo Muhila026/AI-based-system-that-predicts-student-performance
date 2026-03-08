@@ -26,6 +26,14 @@ import { motion } from 'framer-motion'
 import { AdminCourse, addCourse, updateCourse, deleteCourse, getCourses, getTeachers } from '../../lib/api'
 import type { AdminUser } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 const CourseManagement: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false)
   const [editingCourse, setEditingCourse] = useState<AdminCourse | null>(null)
@@ -92,10 +100,10 @@ const CourseManagement: React.FC = () => {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h4" fontWeight="bold" sx={{ color: THEME.textDark }}>
             Course Management
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: THEME.muted }}>
             Manage courses and subjects across the platform
           </Typography>
         </Box>
@@ -107,7 +115,7 @@ const CourseManagement: React.FC = () => {
             setForm({ name: '', code: '', teachers: [], students: 0, status: 'Active' })
             setOpenDialog(true)
           }}
-          sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+          sx={{ bgcolor: THEME.primary, '&:hover': { bgcolor: '#16324d' } }}
         >
           Add Course
         </Button>
@@ -115,28 +123,28 @@ const CourseManagement: React.FC = () => {
 
       {/* Stats */}
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(3, 1fr)' }} gap={2} mb={3}>
-        <Card>
+        <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
           <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#0369a1">
+            <Typography variant="h5" fontWeight="bold" sx={{ color: THEME.primary }}>
               {courses.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">Total Courses</Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Courses</Typography>
           </CardContent>
         </Card>
-        <Card>
+        <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
           <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#15803d">
+            <Typography variant="h5" fontWeight="bold" sx={{ color: THEME.primary }}>
               {courses.filter(c => c.status === 'Active').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">Active Courses</Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Active Courses</Typography>
           </CardContent>
         </Card>
-        <Card>
+        <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
           <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#6366f1">
+            <Typography variant="h5" fontWeight="bold" sx={{ color: THEME.primary }}>
               {courses.reduce((sum, c) => sum + c.students, 0)}
             </Typography>
-            <Typography variant="body2" color="text.secondary">Total Enrollments</Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Enrollments</Typography>
           </CardContent>
         </Card>
       </Box>
@@ -147,9 +155,9 @@ const CourseManagement: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : courses.length === 0 ? (
-        <Card>
+        <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder }}>
           <CardContent>
-            <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+            <Typography variant="body1" sx={{ color: THEME.muted, textAlign: 'center', py: 4 }}>
               No courses found
             </Typography>
           </CardContent>
@@ -158,22 +166,23 @@ const CourseManagement: React.FC = () => {
         <Box display="grid" gap={2}>
           {courses.map((course, index) => (
             <motion.div key={course.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-              <Card>
+              <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
                 <CardContent>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
-                      <Typography variant="h6" fontWeight="bold">{course.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: THEME.textDark }}>{course.name}</Typography>
+                      <Typography variant="body2" sx={{ color: THEME.muted }}>
                         Code: {course.code} • Teachers: {courseTeachers(course).length ? courseTeachers(course).join(', ') : '—'}
                       </Typography>
                       <Box display="flex" gap={2} mt={1}>
-                        <Chip icon={<People />} label={`${course.students} students`} size="small" />
+                        <Chip icon={<People />} label={`${course.students} students`} size="small" sx={{ borderColor: THEME.primaryBorder, color: THEME.primary }} variant="outlined" />
                         <Chip 
                           label={course.status} 
                           size="small"
                           sx={{
-                            bgcolor: course.status === 'Active' ? '#dcfce7' : '#f3f4f6',
-                            color: course.status === 'Active' ? '#15803d' : '#6b7280',
+                            bgcolor: course.status === 'Active' ? THEME.primaryLight : '#f3f4f6',
+                            color: course.status === 'Active' ? THEME.primary : THEME.muted,
+                            border: 'none',
                           }}
                         />
                       </Box>
@@ -194,11 +203,13 @@ const CourseManagement: React.FC = () => {
                           })
                           setOpenDialog(true)
                         }}
+                        sx={{ borderColor: THEME.primary, color: THEME.primary, '&:hover': { borderColor: THEME.primary, bgcolor: THEME.primaryLight } }}
                       >
                         Edit
                       </Button>
                       <IconButton 
                         color="error" 
+                        size="small"
                         onClick={async () => {
                           if (!window.confirm('Are you sure you want to delete this course?')) {
                             return
@@ -232,8 +243,8 @@ const CourseManagement: React.FC = () => {
         setOpenDialog(false)
         setEditingCourse(null)
         setForm({ name: '', code: '', teachers: [], students: 0, status: 'Active' })
-      }} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle>
+      }} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
+        <DialogTitle sx={{ color: THEME.textDark, borderBottom: `1px solid ${THEME.primaryBorder}`, pb: 2 }}>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle>
         <DialogContent>
           <Box display="grid" gap={3} mt={2}>
             <TextField
@@ -291,14 +302,15 @@ const CourseManagement: React.FC = () => {
             </FormControl>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, pt: 2 }}>
           <Button onClick={() => {
             setOpenDialog(false)
             setEditingCourse(null)
             setForm({ name: '', code: '', teachers: [], students: 0, status: 'Active' })
-          }}>Cancel</Button>
+          }} sx={{ color: THEME.muted }}>Cancel</Button>
           <Button
             variant="contained"
+            sx={{ bgcolor: THEME.primary, '&:hover': { bgcolor: '#16324d' } }}
             onClick={async () => {
               if (!form.name || !form.name.trim()) {
                 setSnackbar({ open: true, message: 'Course name is required', severity: 'error' })

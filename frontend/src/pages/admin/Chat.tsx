@@ -33,6 +33,14 @@ import {
   AdminUser,
 } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 interface ChatMessage {
   id: string
   senderId: string
@@ -221,45 +229,42 @@ const AdminChat: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" mb={1}>
-            Chat
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Communicate with teachers
-          </Typography>
-        </Box>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Chat
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Communicate with teachers and students
+        </Typography>
       </Box>
 
-      <Card sx={{ height: 'calc(100vh - 250px)', display: 'flex', overflow: 'hidden' }}>
+      <Card elevation={0} sx={{ height: 'calc(100vh - 250px)', display: 'flex', overflow: 'hidden', border: `1px solid ${THEME.primaryBorder}` }}>
         {/* Conversations List */}
         <Box
           sx={{
             width: 350,
-            borderRight: '1px solid',
-            borderColor: 'divider',
+            borderRight: `1px solid ${THEME.primaryBorder}`,
             display: 'flex',
             flexDirection: 'column',
-            bgcolor: '#f9fafb',
+            bgcolor: THEME.primaryLight,
           }}
         >
           {/* Tabs */}
-          <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', borderBottom: `1px solid ${THEME.primaryBorder}` }}>
             <Box
               sx={{
                 flex: 1,
                 p: 1.5,
                 textAlign: 'center',
                 cursor: 'pointer',
-                bgcolor: !showUsers ? '#fee2e2' : 'transparent',
-                borderBottom: !showUsers ? '2px solid #ef4444' : 'none',
-                '&:hover': { bgcolor: '#fef2f2' },
+                bgcolor: !showUsers ? THEME.primaryLight : 'transparent',
+                borderBottom: !showUsers ? `2px solid ${THEME.primary}` : 'none',
+                '&:hover': { bgcolor: THEME.primaryLight },
               }}
               onClick={() => setShowUsers(false)}
             >
-              <Typography variant="body2" fontWeight={!showUsers ? 'bold' : 'normal'}>
+              <Typography variant="body2" fontWeight={!showUsers ? 600 : 500} sx={{ color: THEME.textDark }}>
                 Conversations
               </Typography>
             </Box>
@@ -269,13 +274,13 @@ const AdminChat: React.FC = () => {
                 p: 1.5,
                 textAlign: 'center',
                 cursor: 'pointer',
-                bgcolor: showUsers ? '#fee2e2' : 'transparent',
-                borderBottom: showUsers ? '2px solid #ef4444' : 'none',
-                '&:hover': { bgcolor: '#fef2f2' },
+                bgcolor: showUsers ? THEME.primaryLight : 'transparent',
+                borderBottom: showUsers ? `2px solid ${THEME.primary}` : 'none',
+                '&:hover': { bgcolor: THEME.primaryLight },
               }}
               onClick={() => setShowUsers(true)}
             >
-              <Typography variant="body2" fontWeight={showUsers ? 'bold' : 'normal'}>
+              <Typography variant="body2" fontWeight={showUsers ? 600 : 500} sx={{ color: THEME.textDark }}>
                 All Users
               </Typography>
             </Box>

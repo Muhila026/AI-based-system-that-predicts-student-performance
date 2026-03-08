@@ -10,83 +10,197 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
   CircularProgress,
 } from '@mui/material'
-import { getModules, type Module } from '../../lib/api'
+import { MenuBook, People } from '@mui/icons-material'
+import { motion } from 'framer-motion'
+import { getTeacherMySubjects, type TeacherSubjectWithName } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
+/**
+ * Teacher "My Subjects" page.
+ * Fetches subjects from teacher_subjects table (GET /schema/teacher-subjects/me).
+ * Backend joins with subjects collection to return subject_id and subject_name.
+ */
 const TeacherModules: React.FC = () => {
-  const [modules, setModules] = useState<Module[]>([])
+  const [subjects, setSubjects] = useState<TeacherSubjectWithName[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadModules()
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await getTeacherMySubjects()
+        if (!cancelled) setSubjects(Array.isArray(data) ? data : [])
+      } catch (e: any) {
+        if (!cancelled) {
+          setError(e?.message || 'Failed to load subjects')
+          setSubjects([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
   }, [])
 
-  const loadModules = async () => {
-    try {
-      setLoading(true)
-      // TODO: Filter by teacher's assigned modules when backend supports it
-      const data = await getModules()
-      setModules(data)
-    } catch (error) {
-      console.error('Error loading modules:', error)
-    } finally {
-      setLoading(false)
-    }
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="280px">
+        <CircularProgress sx={{ color: THEME.primary }} />
+      </Box>
+    )
   }
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" mb={3}>
-        My Modules
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      {/* Header — same style as Admin / Teacher Dashboard */}
+      <Box
+        sx={{
+          mb: 3,
+          pb: 3,
+          borderBottom: `1px solid ${THEME.primaryBorder}`,
+        }}
+      >
+        <Typography
+          variant="h5"
+          fontWeight="700"
+          sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}
+        >
+          My Subjects
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Subjects assigned to you from teacher_subjects. Contact admin to get assigned to more.
+        </Typography>
+      </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><strong>Module Code</strong></TableCell>
-                  <TableCell><strong>Module Name</strong></TableCell>
-                  <TableCell><strong>Course</strong></TableCell>
-                  <TableCell><strong>Semester</strong></TableCell>
-                  <TableCell><strong>Credits</strong></TableCell>
-                  <TableCell><strong>Students</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <CircularProgress />
+      {error && (
+        <Typography variant="body2" sx={{ color: '#991b1b', mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+
+      {/* Summary card */}
+      <Box sx={{ mb: 2.5 }}>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <Card
+            elevation={0}
+            sx={{
+              border: `1px solid ${THEME.primaryBorder}`,
+              borderRadius: 0,
+              backgroundColor: '#fff',
+            }}
+          >
+            <CardContent sx={{ py: 2, px: 2.5 }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 0,
+                      backgroundColor: THEME.primaryLight,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: THEME.primary,
+                    }}
+                  >
+                    <MenuBook />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: THEME.muted, fontWeight: 500 }}>
+                      Total subjects
+                    </Typography>
+                    <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark }}>
+                      {subjects.length}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <People sx={{ color: THEME.muted, fontSize: 20 }} />
+                  <Typography variant="body2" sx={{ color: THEME.muted }}>
+                    Assigned via teacher_subjects table
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </Box>
+
+      {/* Subjects table — from teacher_subjects + subjects */}
+      <Card
+        elevation={0}
+        sx={{
+          border: `1px solid ${THEME.primaryBorder}`,
+          borderRadius: 0,
+          backgroundColor: '#fff',
+        }}
+      >
+        <CardContent sx={{ py: 2.5, px: 2.5 }}>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <MenuBook sx={{ color: THEME.primary, fontSize: 22 }} />
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
+              Subject Details
+            </Typography>
+          </Box>
+          {subjects.length === 0 ? (
+            <Box>
+              <Typography variant="body2" sx={{ color: THEME.muted }}>
+                No subjects assigned yet. Contact admin to add you in the teacher_subjects collection.
+              </Typography>
+              <Typography variant="caption" sx={{ color: THEME.muted, display: 'block', mt: 1 }}>
+                Your login email must match the teacher_id field in each teacher_subjects document.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ borderBottom: `2px solid ${THEME.primaryBorder}` }}>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
+                      Subject
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
+                      Subject ID
                     </TableCell>
                   </TableRow>
-                ) : modules.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <Typography color="textSecondary">No modules assigned</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  modules.map((module) => (
-                    <TableRow key={module.module_id}>
-                      <TableCell>{module.module_code}</TableCell>
-                      <TableCell>{module.module_name}</TableCell>
-                      <TableCell>{module.course_name || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Chip label={`Semester ${module.semester}`} size="small" />
+                </TableHead>
+                <TableBody>
+                  {subjects.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      sx={{
+                        borderBottom: `1px solid ${THEME.primaryBorder}`,
+                        '&:hover': { backgroundColor: THEME.primaryLight },
+                      }}
+                    >
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Typography variant="body2" fontWeight="600" sx={{ color: THEME.textDark }}>
+                          {row.subject_name || row.subject_id || '—'}
+                        </Typography>
                       </TableCell>
-                      <TableCell>{module.credit_value}</TableCell>
-                      <TableCell>N/A</TableCell>
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>
+                        {row.subject_id}
+                      </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
     </Box>
@@ -94,4 +208,3 @@ const TeacherModules: React.FC = () => {
 }
 
 export default TeacherModules
-

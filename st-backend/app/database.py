@@ -25,45 +25,26 @@ COLLECTIONS = [
     "course_enquiries",
     "course_enrollments",
     "course_payments",
-    "theory_topics",
-    "theory_details",
-    "theory_quizzes",
-    "theory_quiz_results",
-    "theory_completions",
-    "techniques_topics",
-    "techniques_details",
-    "techniques_quizzes",
-    "techniques_quiz_results",
-    "techniques_completions",
-    "choreography_videos",
-    "games",
-    "game_details",
-    "game_user_details",
-    "challenges",
-    "challenge_completions",
-    "online_events",
-    "event_bookings",
-    "reels",
-    "reel_comments",
     "chats",
     "chat_members",
     "messages",
     "message_reactions",
     "message_reads",
     "notifications",
-    "workout_tabs",
-    "workout_videos",
-    "user_preference_questions",
-    "user_preference_answers",
-    "user_preferences",
-    "user_likes",
     # ML - Student Performance
     "student_study_logs",
     "student_participation",
-    "student_predictions",
     "assignment_submissions",
     "attendance_daily",
     "assessments",
+    "roles",
+    # Schema: subjects, student_subjects, teacher_subjects, student marks, predictions
+    "subjects",
+    "student_subjects",
+    "teacher_subjects",
+    "student_subject_marks",
+    "predictions",
+    "subject_assignments",
 ]
 
 
@@ -101,17 +82,25 @@ async def connect_to_mongo():
     await db.course_enquiries.create_index("courseId")
     await db.course_enrollments.create_index([("courseId", 1), ("userEmail", 1)])
     await db.course_payments.create_index("userEmail")
-    await db.theory_quiz_results.create_index("userEmail")
-    await db.techniques_quiz_results.create_index("userEmail")
-    await db.game_user_details.create_index("userEmail")
     await db.chats.create_index("id", unique=True)
     await db.messages.create_index("chatId")
     await db.notifications.create_index("userEmail")
     await db.student_study_logs.create_index([("userEmail", 1), ("courseId", 1)])
     await db.student_participation.create_index([("userEmail", 1), ("courseId", 1)])
-    await db.student_predictions.create_index("userEmail")
     await db.assignment_submissions.create_index([("userEmail", 1), ("assignment_id", 1)])
     await db.attendance_daily.create_index([("userEmail", 1), ("date", 1)], unique=True)
+    # New schema indexes (subjects: _id can be string e.g. SUB101; subject_name only, no semester)
+    await db.subjects.create_index("subject_name")
+    await db.student_subjects.create_index([("student_id", 1), ("subject_id", 1)], unique=True)
+    await db.student_subjects.create_index("student_id")
+    await db.teacher_subjects.create_index([("teacher_id", 1), ("subject_id", 1)], unique=True)
+    await db.teacher_subjects.create_index("teacher_id")
+    await db.student_subject_marks.create_index([("student_id", 1), ("subject_id", 1)], unique=True)
+    await db.student_subject_marks.create_index("student_id")
+    await db.predictions.create_index([("student_id", 1), ("subject_id", 1)], unique=True)
+    await db.predictions.create_index("student_id")
+    await db.subject_assignments.create_index("subject_id")
+    await db.subject_assignments.create_index("teacher_id")
     print("[OK] Database indexes created")
 
     # Seed default admin if not exists; migrate existing super_admin to admin

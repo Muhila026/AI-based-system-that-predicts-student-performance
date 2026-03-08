@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from datetime import datetime
+import re
 import uuid
 
 from app.database import get_database
@@ -80,6 +81,39 @@ async def get_teacher_dashboard(user: dict = Depends(require_role(["teacher", "a
     ]
 
     return {"stats": stats}
+
+
+@router.get("/my-subjects")
+async def get_my_teacher_subjects(user: dict = Depends(require_role(["teacher", "admin"]))):
+    """
+    List subjects assigned to the current teacher from teacher_subjects table.
+    Returns list of { id, teacher_id, subject_id, subject_name }.
+    Uses JWT email (user["email"] or user["sub"]) and matches teacher_id case-insensitively.
+    """
+    db = get_database()
+    # JWT stores email in "sub"; get_current_user passes it as "email" - support both
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Teacher email missing")
+    email_regex = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+    cursor = db.teacher_subjects.find({"teacher_id": email_regex}, {"_id": 1, "teacher_id": 1, "subject_id": 1})
+    items = []
+    async for doc in cursor:
+        subject_id = doc.get("subject_id")
+        subject_name = None
+        if subject_id:
+            sub = await db.subjects.find_one({"_id": subject_id}, {"subject_name": 1})
+            if not sub and isinstance(subject_id, str) and subject_id.isdigit():
+                sub = await db.subjects.find_one({"_id": int(subject_id)}, {"subject_name": 1})
+            subject_name = (sub.get("subject_name") if sub else None) or (subject_id if isinstance(subject_id, str) else str(subject_id))
+        raw_id = doc.get("_id")
+        items.append({
+            "id": str(raw_id) if raw_id is not None else "",
+            "teacher_id": doc.get("teacher_id"),
+            "subject_id": str(subject_id) if subject_id is not None else "",
+            "subject_name": subject_name or "",
+        })
+    return items
 
 
 @router.get("/students/performance")

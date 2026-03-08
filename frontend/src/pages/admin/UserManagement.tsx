@@ -23,10 +23,12 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Avatar,
   CircularProgress,
+  Avatar,
+  Snackbar,
+  Alert,
 } from '@mui/material'
-import { Add, Edit, Delete, Search, Block, LockReset, Visibility, VisibilityOff } from '@mui/icons-material'
+import { Add, Edit, Delete, Search, Block, LockReset, Visibility, VisibilityOff, Security } from '@mui/icons-material'
 import {
   addUser,
   AdminUser,
@@ -45,12 +47,21 @@ import {
   type TeacherDetail,
 } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 interface UserManagementProps {
   initialOpenAddDialog?: boolean
   onAddDialogHandled?: () => void
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, onAddDialogHandled }) => {
+  const [usersLoading, setUsersLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [openDialog, setOpenDialog] = useState(false)
   const [openEditDialog, setOpenEditDialog] = useState(false)
@@ -63,6 +74,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
   const [users, setUsers] = useState<AdminUser[]>([])
   const [roles, setRoles] = useState<UserRole[]>([])
   const [roleFilter, setRoleFilter] = useState<string>('')
+  const [openRoleManagementPopup, setOpenRoleManagementPopup] = useState(false)
   const [openRoleDialog, setOpenRoleDialog] = useState(false)
   const [openEditRoleDialog, setOpenEditRoleDialog] = useState(false)
   const [editRole, setEditRole] = useState<UserRole | null>(null)
@@ -74,6 +86,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
   const [detailsType, setDetailsType] = useState<'student' | 'teacher' | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' })
   const SYSTEM_ROLE_KEYS = ['Student', 'Teacher', 'Admin']
 
   /** Role options for user forms: system roles only, from API (displayName + roleKey) */
@@ -82,7 +95,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
     ? systemRoles
     : SYSTEM_ROLE_KEYS.map((key) => ({ roleKey: key, displayName: key === 'Admin' ? 'Administrator' : key, description: '' }))
 
-  useEffect(() => { getUsers().then(setUsers) }, [])
+  useEffect(() => {
+    setUsersLoading(true)
+    getUsers()
+      .then(setUsers)
+      .finally(() => setUsersLoading(false))
+  }, [])
   useEffect(() => { getRoles().then(setRoles) }, [])
 
   useEffect(() => {
@@ -99,6 +117,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
     password: '',
   })
   const [showAddUserPassword, setShowAddUserPassword] = useState(false)
+  const [addUserLoading, setAddUserLoading] = useState(false)
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -118,7 +137,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
 
   const handleResetPassword = async () => {
     if (!passwordUser || !newPassword || newPassword.length < 6) {
-      alert('Password must be at least 6 characters')
+      setSnackbar({ open: true, message: 'Password must be at least 6 characters', severity: 'error' })
       return
     }
     setPasswordLoading(true)
@@ -127,8 +146,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       setOpenPasswordDialog(false)
       setPasswordUser(null)
       setNewPassword('')
+      setSnackbar({ open: true, message: 'Password updated successfully', severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to reset password')
+      setSnackbar({ open: true, message: error.message || 'Failed to reset password', severity: 'error' })
     } finally {
       setPasswordLoading(false)
     }
@@ -136,46 +156,56 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.name.trim()) {
-      alert('Name is required')
+      setSnackbar({ open: true, message: 'Full name is required', severity: 'error' })
       return
     }
     if (!newUser.email || !newUser.email.trim()) {
-      alert('Email is required')
+      setSnackbar({ open: true, message: 'Email is required', severity: 'error' })
+      return
+    }
+    const emailTrimmed = newUser.email.trim().toLowerCase()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(emailTrimmed)) {
+      setSnackbar({ open: true, message: 'Please enter a valid email address', severity: 'error' })
       return
     }
     if (!newUser.role || !['Student', 'Teacher', 'Admin'].includes(newUser.role)) {
-      alert('Please select a valid role')
+      setSnackbar({ open: true, message: 'Please select a valid role', severity: 'error' })
       return
     }
     if (!newUser.password || newUser.password.length < 6) {
-      alert('Password must be at least 6 characters long')
+      setSnackbar({ open: true, message: 'Password must be at least 6 characters long', severity: 'error' })
       return
     }
+    setAddUserLoading(true)
     try {
-      await addUser({ 
-        name: newUser.name.trim(), 
-        email: newUser.email.trim().toLowerCase(), 
-        role: newUser.role as 'Student' | 'Teacher' | 'Admin', 
+      await addUser({
+        name: newUser.name.trim(),
+        email: emailTrimmed,
+        role: newUser.role as 'Student' | 'Teacher' | 'Admin',
         status: 'Active',
-        password: newUser.password
+        password: newUser.password,
       })
       setOpenDialog(false)
       setNewUser({ name: '', email: '', role: '', password: '' })
       setUsers(await getUsers())
+      setSnackbar({ open: true, message: 'User added successfully', severity: 'success' })
     } catch (error: any) {
       const errorMessage = error.message || error.detail || 'Failed to create user'
-      alert(errorMessage)
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' })
+    } finally {
+      setAddUserLoading(false)
     }
   }
 
   const handleEditUser = async () => {
     if (!editUser) return
     if (!editUser.name || !editUser.name.trim()) {
-      alert('Name is required')
+      setSnackbar({ open: true, message: 'Name is required', severity: 'error' })
       return
     }
     if (!['Student', 'Teacher', 'Admin'].includes(editUser.role)) {
-      alert('Please select a valid role')
+      setSnackbar({ open: true, message: 'Please select a valid role', severity: 'error' })
       return
     }
     try {
@@ -187,8 +217,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       setOpenEditDialog(false)
       setEditUser(null)
       setUsers(await getUsers())
+      setSnackbar({ open: true, message: 'User updated successfully', severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to update user')
+      setSnackbar({ open: true, message: error.message || 'Failed to update user', severity: 'error' })
     }
   }
 
@@ -197,19 +228,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
     try {
       await updateUser(user.id, { status: newStatus })
       setUsers(await getUsers())
+      setSnackbar({ open: true, message: `User ${newStatus === 'Active' ? 'activated' : 'deactivated'}`, severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to update status')
+      setSnackbar({ open: true, message: error.message || 'Failed to update status', severity: 'error' })
     }
   }
 
   const handleAddRole = async () => {
     if (!newRole.roleKey?.trim() || !newRole.displayName?.trim()) {
-      alert('Role key and display name are required')
+      setSnackbar({ open: true, message: 'Role key and display name are required', severity: 'error' })
       return
     }
     const key = newRole.roleKey.trim()
     if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) {
-      alert('Role key must start with a letter and contain only letters, numbers, and underscore')
+      setSnackbar({ open: true, message: 'Role key must start with a letter and contain only letters, numbers, and underscore', severity: 'error' })
       return
     }
     setRoleSubmitLoading(true)
@@ -222,8 +254,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       setOpenRoleDialog(false)
       setNewRole({ roleKey: '', displayName: '', description: '' })
       setRoles(await getRoles())
+      setSnackbar({ open: true, message: 'Role added successfully', severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to add role')
+      setSnackbar({ open: true, message: error.message || 'Failed to add role', severity: 'error' })
     } finally {
       setRoleSubmitLoading(false)
     }
@@ -240,8 +273,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       setOpenEditRoleDialog(false)
       setEditRole(null)
       setRoles(await getRoles())
+      setSnackbar({ open: true, message: 'Role updated successfully', severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to update role')
+      setSnackbar({ open: true, message: error.message || 'Failed to update role', severity: 'error' })
     } finally {
       setRoleSubmitLoading(false)
     }
@@ -249,15 +283,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
 
   const handleDeleteRole = async (roleKey: string) => {
     if (SYSTEM_ROLE_KEYS.includes(roleKey)) {
-      alert('System roles (Student, Teacher, Admin) cannot be deleted.')
+      setSnackbar({ open: true, message: 'System roles (Student, Teacher, Admin) cannot be deleted.', severity: 'error' })
       return
     }
     if (!window.confirm(`Delete role "${roleKey}"? Users with this role will need to be reassigned.`)) return
     try {
       await deleteRole(roleKey)
       setRoles(await getRoles())
+      setSnackbar({ open: true, message: 'Role deleted', severity: 'success' })
     } catch (error: any) {
-      alert(error.message || 'Failed to delete role')
+      setSnackbar({ open: true, message: error.message || 'Failed to delete role', severity: 'error' })
     }
   }
 
@@ -301,203 +336,219 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
   )
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      {/* Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          mb: 3,
+          pb: 3,
+          borderBottom: `1px solid ${THEME.primaryBorder}`,
+        }}
+      >
         <Box>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
             User Management
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Add, edit, and manage system users
+          <Typography variant="body2" sx={{ color: THEME.muted }}>
+            Manage students, teachers, and admins in one place
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenDialog(true)}
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          }}
-        >
-          Add User
-        </Button>
+        <Box display="flex" gap={1.5} flexWrap="wrap">
+          <Button
+            variant="outlined"
+            startIcon={<Security />}
+            onClick={() => setOpenRoleManagementPopup(true)}
+            sx={{
+              borderColor: THEME.primary,
+              color: THEME.primary,
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 2.5,
+              py: 1.25,
+              '&:hover': { borderColor: '#1e40af', backgroundColor: THEME.primaryLight },
+            }}
+          >
+            User Role
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              setNewUser({ name: '', email: '', role: 'Student', password: '' })
+              setOpenDialog(true)
+            }}
+            sx={{
+              backgroundColor: '#15803d',
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 2.5,
+              py: 1.25,
+              boxShadow: '0 2px 8px rgba(21, 128, 61, 0.25)',
+              '&:hover': { backgroundColor: '#166534', boxShadow: '0 4px 12px rgba(21, 128, 61, 0.35)' },
+            }}
+          >
+            Add Student
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              setNewUser({ name: '', email: '', role: '', password: '' })
+              setOpenDialog(true)
+            }}
+            sx={{
+              backgroundColor: THEME.primary,
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 2.5,
+              py: 1.25,
+              boxShadow: '0 2px 8px rgba(30, 58, 138, 0.25)',
+              '&:hover': { backgroundColor: '#1e40af', boxShadow: '0 4px 12px rgba(30, 58, 138, 0.35)' },
+            }}
+          >
+            Add User
+          </Button>
+        </Box>
       </Box>
 
       {/* Stats */}
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(4, 1fr)' }} gap={2} mb={3}>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#0369a1">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.primary }}>
               {users.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Users
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Users</Typography>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#15803d">
-              {users.filter(u => u.role === 'Student').length}
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: '#15803d' }}>
+              {users.filter((u) => u.role === 'Student').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Students
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Students</Typography>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#1e40af">
-              {users.filter(u => u.role === 'Teacher').length}
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: '#1e40af' }}>
+              {users.filter((u) => u.role === 'Teacher').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Teachers
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Teachers</Typography>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#991b1b">
-              {users.filter(u => u.role === 'Admin').length}
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: '#991b1b' }}>
+              {users.filter((u) => u.role === 'Admin').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Admins
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Admins</Typography>
           </CardContent>
         </Card>
       </Box>
 
-      {/* Search and Role Filter */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      {/* Search and role filter */}
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, mb: 3 }}>
+        <CardContent sx={{ py: 2, px: 2.5 }}>
           <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="stretch">
             <TextField
-              sx={{ flex: 1 }}
+              fullWidth
+              size="small"
               placeholder="Search by name, email, or role..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              sx={{ flex: 1 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search />
+                    <Search sx={{ color: THEME.muted, fontSize: 20 }} />
                   </InputAdornment>
                 ),
               }}
             />
-            <FormControl sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: 180 }}>
               <InputLabel>Filter by role</InputLabel>
               <Select
                 value={roleFilter}
                 label="Filter by role"
                 onChange={(e) => setRoleFilter(e.target.value)}
               >
-                <MenuItem value="">All roles</MenuItem>
-                {roles.map((r) => (
-                  <MenuItem key={r.roleKey} value={r.roleKey}>{r.displayName}</MenuItem>
-                ))}
+                <MenuItem value="">All (Students, Teachers, Admins)</MenuItem>
+                <MenuItem value="Student">Students only</MenuItem>
+                <MenuItem value="Teacher">Teachers only</MenuItem>
+                <MenuItem value="Admin">Admins only</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </CardContent>
       </Card>
 
-      {/* User Roles Table */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6" fontWeight="bold">
-              User Roles
+      {/* Users Table (main) */}
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, mb: 3 }}>
+        <CardContent sx={{ p: 0 }}>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
+              Users
             </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Add />}
-              onClick={() => setOpenRoleDialog(true)}
-            >
-              Add role
-            </Button>
           </Box>
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow>
-                  <TableCell><strong>Role</strong></TableCell>
-                  <TableCell><strong>Display name</strong></TableCell>
-                  <TableCell><strong>Description</strong></TableCell>
-                  <TableCell align="right"><strong>Actions</strong></TableCell>
+                <TableRow sx={{ backgroundColor: THEME.primaryLight }}>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>User</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Role</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Joined</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, color: THEME.textDark }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {roles.map((r) => (
-                  <TableRow key={r.roleKey}>
-                    <TableCell>
-                      <Chip
-                        label={r.roleKey}
-                        size="small"
-                        sx={{
-                          bgcolor: getRoleColor(r.roleKey).bg,
-                          color: getRoleColor(r.roleKey).color,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>{r.displayName}</TableCell>
-                    <TableCell>{r.description || '—'}</TableCell>
-                    <TableCell align="right">
-                      <Box display="flex" gap={0.5} justifyContent="flex-end">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          title="Edit role"
-                          onClick={() => {
-                            setEditRole({ ...r })
-                            setOpenEditRoleDialog(true)
-                          }}
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          title={SYSTEM_ROLE_KEYS.includes(r.roleKey) ? 'System role cannot be deleted' : 'Delete role'}
-                          disabled={SYSTEM_ROLE_KEYS.includes(r.roleKey)}
-                          onClick={() => handleDeleteRole(r.roleKey)}
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
+                {usersLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <CircularProgress size={32} sx={{ color: THEME.primary }} />
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      {/* Users Table */}
-      <Card>
-        <CardContent>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><strong>User</strong></TableCell>
-                  <TableCell><strong>Email</strong></TableCell>
-                  <TableCell><strong>Role</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Joined Date</strong></TableCell>
-                  <TableCell><strong>Actions</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id} sx={{ '&:hover': { bgcolor: '#f9fafb' } }}>
+                )}
+                {!usersLoading && filteredUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4, color: THEME.muted }}>
+                      {roleFilter || searchQuery.trim()
+                        ? 'No users match your filter.'
+                        : 'No users yet. Add a user to get started.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!usersLoading && filteredUsers.map((user) => (
+                  <TableRow key={user.id} sx={{ '&:hover': { backgroundColor: THEME.primaryLight } }}>
                     <TableCell>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Avatar sx={{ bgcolor: '#6366f1', width: 32, height: 32 }}>
-                          {user.name.charAt(0)}
-                        </Avatar>
-                        <Typography variant="body2" fontWeight={600}>
+                      <Box display="flex" alignItems="center" gap={1.5}>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 0,
+                            backgroundColor: THEME.primary,
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {user.name.charAt(0).toUpperCase()}
+                        </Box>
+                        <Typography variant="body2" fontWeight={600} sx={{ color: THEME.textDark }}>
                           {user.name}
                         </Typography>
                       </Box>
@@ -574,8 +625,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
                               try {
                                 await deleteUser(user.id)
                                 setUsers(await getUsers())
+                                setSnackbar({ open: true, message: 'User deleted', severity: 'success' })
                               } catch (error: any) {
-                                alert(error.message || 'Failed to delete user')
+                                setSnackbar({ open: true, message: error.message || 'Failed to delete user', severity: 'error' })
                               }
                             }
                           }}
@@ -585,7 +637,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
                       </Box>
                     </TableCell>
                   </TableRow>
-                  ))}
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -593,29 +645,90 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       </Card>
 
       {/* Add User Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Add New User</DialogTitle>
-        <DialogContent>
-          <Box display="grid" gap={3} mt={2}>
+      <Dialog
+        open={openDialog}
+        onClose={() => !addUserLoading && setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 0,
+            border: `1px solid ${THEME.primaryBorder}`,
+            boxShadow: '0 4px 20px rgba(30, 58, 138, 0.12)',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            fontSize: '1.25rem',
+            color: THEME.textDark,
+            borderBottom: `1px solid ${THEME.primaryBorder}`,
+            pb: 2,
+            pt: 2.5,
+            px: 3,
+          }}
+        >
+          Add New User
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pt: 3, pb: 2 }}>
+          <Box display="grid" gap={2.5}>
             <TextField
               fullWidth
+              required
               label="Full Name"
+              placeholder="John Doe"
               value={newUser.name}
               onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              disabled={addUserLoading}
+              variant="outlined"
+              margin="normal"
+              InputLabelProps={{ shrink: true, sx: { color: THEME.textDark } }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 0,
+                  '& fieldset': { borderColor: THEME.primaryBorder },
+                  '&:hover fieldset': { borderColor: THEME.primary },
+                  '&.Mui-focused fieldset': { borderColor: THEME.primary, borderWidth: 1 },
+                },
+              }}
             />
             <TextField
               fullWidth
+              required
               label="Email Address"
               type="email"
+              placeholder="john@example.com"
               value={newUser.email}
               onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              disabled={addUserLoading}
+              variant="outlined"
+              margin="normal"
+              InputLabelProps={{ shrink: true, sx: { color: THEME.textDark } }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 0,
+                  '& fieldset': { borderColor: THEME.primaryBorder },
+                  '&:hover fieldset': { borderColor: THEME.primary },
+                  '&.Mui-focused fieldset': { borderColor: THEME.primary, borderWidth: 1 },
+                },
+              }}
             />
-            <FormControl fullWidth>
-              <InputLabel>Role</InputLabel>
+            <FormControl fullWidth required disabled={addUserLoading} variant="outlined" margin="normal">
+              <InputLabel id="add-user-role-label" shrink sx={{ color: THEME.textDark }}>
+                Role
+              </InputLabel>
               <Select
+                labelId="add-user-role-label"
                 value={newUser.role}
                 label="Role"
                 onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                sx={{
+                  borderRadius: 0,
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: THEME.primaryBorder },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: THEME.primary },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: THEME.primary },
+                }}
               >
                 {roleOptionsForForms.map((r) => (
                   <MenuItem key={r.roleKey} value={r.roleKey}>{r.displayName}</MenuItem>
@@ -624,10 +737,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
             </FormControl>
             <TextField
               fullWidth
+              required
               label="Password"
               type={showAddUserPassword ? 'text' : 'password'}
+              placeholder="Min 6 characters"
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              disabled={addUserLoading}
+              variant="outlined"
+              margin="normal"
+              InputLabelProps={{ shrink: true, sx: { color: THEME.textDark } }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -635,19 +754,62 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
                       aria-label={showAddUserPassword ? 'Hide password' : 'Show password'}
                       onClick={() => setShowAddUserPassword((v) => !v)}
                       edge="end"
+                      size="small"
                     >
                       {showAddUserPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
                 ),
               }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 0,
+                  '& fieldset': { borderColor: THEME.primaryBorder },
+                  '&:hover fieldset': { borderColor: THEME.primary },
+                  '&.Mui-focused fieldset': { borderColor: THEME.primary, borderWidth: 1 },
+                },
+              }}
             />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddUser}>
-            Add User
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: `1px solid ${THEME.primaryBorder}`,
+            backgroundColor: THEME.primaryLight,
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={() => setOpenDialog(false)}
+            disabled={addUserLoading}
+            variant="outlined"
+            sx={{
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderColor: THEME.primaryBorder,
+              color: THEME.textDark,
+              '&:hover': { borderColor: THEME.primary, backgroundColor: 'transparent' },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={addUserLoading ? <CircularProgress size={18} color="inherit" /> : <Add />}
+            onClick={handleAddUser}
+            disabled={addUserLoading || !newUser.name.trim() || !newUser.email.trim() || !newUser.role || (newUser.password?.length ?? 0) < 6}
+            sx={{
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              backgroundColor: THEME.primary,
+              '&:hover': { backgroundColor: '#1e40af' },
+            }}
+          >
+            {addUserLoading ? 'Adding...' : 'Add User'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -674,7 +836,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
                 label="Email"
                 value={editUser.email}
                 disabled
-                helperText="Email cannot be changed"
               />
               <FormControl fullWidth>
                 <InputLabel>Role</InputLabel>
@@ -862,6 +1023,88 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
         </DialogActions>
       </Dialog>
 
+      {/* User Role Management Popup */}
+      <Dialog
+        open={openRoleManagementPopup}
+        onClose={() => setOpenRoleManagementPopup(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 0 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.25rem', color: THEME.textDark, borderBottom: `1px solid ${THEME.primaryBorder}`, pb: 2 }}>
+          User Role Management
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ px: 2.5, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>
+              Add, edit, or remove user roles. System roles (Student, Teacher, Admin) cannot be deleted.
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Add />}
+              onClick={() => setOpenRoleDialog(true)}
+              sx={{ borderRadius: 0, textTransform: 'none', fontWeight: 600, backgroundColor: THEME.primary, '&:hover': { backgroundColor: '#1e40af' } }}
+            >
+              Add role
+            </Button>
+          </Box>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: THEME.primaryLight }}>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Role</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Display name</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark }}>Description</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, color: THEME.textDark }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {roles.map((r) => (
+                  <TableRow key={r.roleKey} sx={{ '&:hover': { backgroundColor: THEME.primaryLight } }}>
+                    <TableCell>
+                      <Chip
+                        label={r.roleKey}
+                        size="small"
+                        sx={{ borderRadius: 0, bgcolor: getRoleColor(r.roleKey).bg, color: getRoleColor(r.roleKey).color }}
+                      />
+                    </TableCell>
+                    <TableCell>{r.displayName}</TableCell>
+                    <TableCell sx={{ color: THEME.muted }}>{r.description || '—'}</TableCell>
+                    <TableCell align="right">
+                      <Box display="flex" gap={0.5} justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          sx={{ color: THEME.primary }}
+                          title="Edit role"
+                          onClick={() => { setEditRole({ ...r }); setOpenEditRoleDialog(true) }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          title={SYSTEM_ROLE_KEYS.includes(r.roleKey) ? 'System role cannot be deleted' : 'Delete role'}
+                          disabled={SYSTEM_ROLE_KEYS.includes(r.roleKey)}
+                          onClick={() => handleDeleteRole(r.roleKey)}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, px: 2.5, py: 2 }}>
+          <Button onClick={() => setOpenRoleManagementPopup(false)} sx={{ borderRadius: 0, textTransform: 'none' }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Add Role Dialog */}
       <Dialog
         open={openRoleDialog}
@@ -959,6 +1202,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

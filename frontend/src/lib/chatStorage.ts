@@ -281,7 +281,7 @@ export function markMessagesAsRead(conversationId: string): void {
   saveConversations(updatedConvs)
 }
 
-export function getCurrentUser(): { id: string; name: string; role: string } {
+export function getCurrentUser(): { id: string; name: string; role: string; email?: string } {
   let userStr = localStorage.getItem('user')
   if (!userStr) userStr = sessionStorage.getItem('user')
   if (userStr) {
@@ -293,6 +293,7 @@ export function getCurrentUser(): { id: string; name: string; role: string } {
         id: user.id ?? (role === 'teacher' ? 'teacher-1' : role === 'admin' ? 'admin-1' : 'student-1'),
         name: user.name || 'User',
         role,
+        email: user.email || undefined,
       }
     } catch {
     }

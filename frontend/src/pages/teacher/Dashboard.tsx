@@ -4,21 +4,21 @@ import {
   Card,
   CardContent,
   Typography,
-  Chip,
-  Avatar,
   LinearProgress,
   CircularProgress,
   ButtonBase,
 } from '@mui/material'
 import {
   People,
-  Assignment,
+  School,
   TrendingUp,
   Grade,
   Add,
   MenuBook,
   Assessment,
   ChevronRight,
+  Assignment,
+  EventNote,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import {
@@ -27,6 +27,14 @@ import {
   getTeacherAssignments,
 } from '../../lib/api'
 import type { AdminCourse } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 interface DashboardStats {
   title: string
@@ -41,6 +49,13 @@ interface DashboardData {
 interface TeacherDashboardProps {
   onSelectPage?: (page: string) => void
 }
+
+const statConfig = [
+  { title: 'Total Students', icon: <People />, color: THEME.primary },
+  { title: 'Active Courses', icon: <School />, color: '#0d9488' },
+  { title: 'Avg Performance', icon: <TrendingUp />, color: '#b45309' },
+  { title: 'Pending Grading', icon: <Grade />, color: '#7c3aed' },
+]
 
 const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => {
   const [loading, setLoading] = useState(true)
@@ -73,7 +88,9 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
         getCourses(),
         getTeacherAssignments(),
       ])
-      setDashboardData(statsRes)
+      const raw = statsRes as { stats?: DashboardStats[]; data?: { stats?: DashboardStats[] } }
+      const stats = raw?.stats ?? raw?.data?.stats ?? []
+      setDashboardData({ stats })
       setCourses(Array.isArray(coursesRes) ? coursesRes : [])
       setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : [])
     } catch (error) {
@@ -93,33 +110,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
     }
   }
 
-  const getStatIcon = (title: string) => {
-    if (title.includes('Students')) return <People />
-    if (title.includes('Courses')) return <Assignment />
-    if (title.includes('Performance')) return <TrendingUp />
-    if (title.includes('Grading')) return <Grade />
-    return <Assignment />
-  }
-
-  const getStatColor = (title: string) => {
-    if (title.includes('Students')) return '#3b82f6'
-    if (title.includes('Courses')) return '#10b981'
-    if (title.includes('Performance')) return '#f59e0b'
-    if (title.includes('Grading')) return '#8b5cf6'
-    return '#6366f1'
-  }
-
-  const stats = dashboardData.stats.length > 0
-    ? dashboardData.stats.map((stat) => ({
-        ...stat,
-        icon: getStatIcon(stat.title),
-        color: getStatColor(stat.title),
-      }))
+  const displayStats = dashboardData.stats.length > 0
+    ? dashboardData.stats
     : [
-        { title: 'Total Students', value: '—', change: '—', icon: <People />, color: '#3b82f6' },
-        { title: 'Active Courses', value: '—', change: '—', icon: <Assignment />, color: '#10b981' },
-        { title: 'Avg Performance', value: '—', change: '—', icon: <TrendingUp />, color: '#f59e0b' },
-        { title: 'Pending Grading', value: '—', change: '—', icon: <Grade />, color: '#8b5cf6' },
+        { title: 'Total Students', value: '—', change: '—' },
+        { title: 'Active Courses', value: '—', change: '—' },
+        { title: 'Avg Performance', value: '—', change: '—' },
+        { title: 'Pending Grading', value: '—', change: '—' },
       ]
 
   const pendingGradingCount = assignments.filter(
@@ -133,280 +130,326 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             ? `Assignment "${a.title}"${a.subject ? ` (${a.subject})` : ''} — ${a.submitted ?? 0}/${a.students ?? 0} submitted`
             : 'Assignment',
           time: a.dueDate ? `Due ${a.dueDate}` : '—',
-          type: 'assignment' as const,
         }))
-      : [
-          {
-            activity: 'No assignments yet. Create one from Quick Actions.',
-            time: '—',
-            type: 'assignment' as const,
-          },
-        ]
+      : [{ activity: 'No assignments yet. Create one from Quick Actions.', time: '—' }]
 
   const classOverview = courses.map((c) => ({
-    id: c.id,
-    class: c.name || (c as any).code || 'Unnamed Course',
-    students: typeof c.students === 'number' ? c.students : parseInt(String(c.students || 0), 10) || 0,
+    id: c.id ?? (c as any)._id ?? '',
+    class: c.name || (c as any).code || (c as any).courseTitle || 'Unnamed Course',
+    students: typeof c.students === 'number' ? c.students : parseInt(String((c as any).students ?? (c as any).totalEnrolledStudents ?? 0), 10) || 0,
     avgScore: 0,
-    assignments: 0,
-    status: c.status,
+    status: (c as any).status ?? 'Active',
   }))
   const activeCourses = classOverview.filter((c) => (c.status || 'Active').toLowerCase() !== 'inactive')
+  const totalStudents = activeCourses.reduce((sum, c) => sum + c.students, 0)
+  const classDistribution = activeCourses.map((cls) => ({
+    type: cls.class,
+    count: cls.students,
+    percentage: totalStudents > 0 ? Math.round((cls.students / totalStudents) * 100) : 0,
+  }))
 
   const handleQuickAction = (page: string) => {
     if (onSelectPage) onSelectPage(page)
   }
 
   return (
-    <Box>
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight="bold" mb={0.5}>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      {/* Header — same style as Admin */}
+      <Box
+        sx={{
+          mb: 3,
+          pb: 3,
+          borderBottom: `1px solid ${THEME.primaryBorder}`,
+        }}
+      >
+        <Typography
+          variant="h5"
+          fontWeight="700"
+          sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}
+        >
           Teacher Dashboard
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
           Welcome back, {teacherName}. Overview of your classes and student performance.
         </Typography>
       </Box>
 
-      {/* Stats Cards */}
+      {/* Stats Cards — same style as Admin */}
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
+          <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : (
         <Box
-          display="grid"
-          gridTemplateColumns={{ xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }}
-          gap={3}
-          mb={4}
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gap: 2.5,
+            mb: 4,
+          }}
         >
-          {stats.map((stat, index) => (
-            <Box key={index}>
+          {displayStats.map((stat, index) => {
+            const config = statConfig[index % statConfig.length]
+            const value = stat.title === 'Pending Grading' && pendingGradingCount > 0
+              ? String(pendingGradingCount)
+              : stat.value
+            return (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                key={index}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
               >
-                <Card sx={{ height: '100%', borderRadius: 2 }}>
-                  <CardContent>
+                <Card
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${THEME.primaryBorder}`,
+                    borderRadius: 0,
+                    backgroundColor: '#fff',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <CardContent sx={{ py: 2.5, px: 2.5 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                      <Box flexGrow={1}>
-                        <Typography variant="body2" color="text.secondary" mb={0.5}>
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: THEME.muted, fontWeight: 500, mb: 0.5 }}
+                        >
                           {stat.title}
                         </Typography>
-                        <Typography variant="h4" fontWeight="bold" mb={0.5}>
-                          {stat.title === 'Pending Grading' && pendingGradingCount > 0
-                            ? String(pendingGradingCount)
-                            : stat.value}
+                        <Typography
+                          variant="h4"
+                          fontWeight="700"
+                          sx={{ color: THEME.textDark, letterSpacing: '-0.02em' }}
+                        >
+                          {value}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" sx={{ color: THEME.muted, mt: 0.5, display: 'block' }}>
                           {stat.change}
                         </Typography>
                       </Box>
-                      <Avatar sx={{ bgcolor: stat.color, width: 48, height: 48 }}>
-                        {stat.icon}
-                      </Avatar>
+                      <Box
+                        sx={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: 0,
+                          backgroundColor: THEME.primaryLight,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: config.color,
+                        }}
+                      >
+                        {config.icon}
+                      </Box>
                     </Box>
                   </CardContent>
                 </Card>
               </motion.div>
-            </Box>
-          ))}
+            )
+          })}
         </Box>
       )}
 
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '2fr 1fr' }} gap={3}>
-        {/* Class Overview */}
-        <Box>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
+      {/* Two columns — same layout as Admin */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
+          gap: 2.5,
+        }}
+      >
+        {/* Class Overview — same card style as Admin User Distribution */}
+        <Card
+          elevation={0}
+          sx={{
+            border: `1px solid ${THEME.primaryBorder}`,
+            borderRadius: 0,
+            backgroundColor: '#fff',
+          }}
+        >
+          <CardContent sx={{ py: 2.5, px: 2.5 }}>
+            <Box display="flex" alignItems="center" gap={1} mb={2.5}>
+              <TrendingUp sx={{ color: THEME.primary, fontSize: 22 }} />
+              <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                 Class Overview
               </Typography>
-              {classOverview.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No courses assigned yet. Contact admin to get assigned to courses.
-                </Typography>
-              ) : (
-                activeCourses.map((cls, index) => (
-                  <Box key={cls.id ?? index} mb={2.5}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                      <Typography variant="body1" fontWeight={600}>
-                        {cls.class}
+            </Box>
+            {classDistribution.length === 0 ? (
+              <Typography variant="body2" sx={{ color: THEME.muted }}>
+                No courses assigned yet. Contact admin to get assigned to courses.
+              </Typography>
+            ) : (
+              classDistribution.map((item, index) => {
+                const colors = [THEME.primary, '#0d9488', '#b45309', '#7c3aed']
+                const barColor = colors[index % colors.length]
+                return (
+                  <Box key={index} sx={{ mb: 2.5 }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.75}>
+                      <Typography variant="body2" fontWeight="600" sx={{ color: THEME.textDark }}>
+                        {item.type}
                       </Typography>
-                      <Chip
-                        label={`${cls.students} students`}
-                        size="small"
-                        color={cls.students > 0 ? 'primary' : 'default'}
-                        variant="outlined"
-                      />
+                      <Typography variant="caption" sx={{ color: THEME.muted }}>
+                        {item.count} students ({item.percentage}%)
+                      </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={cls.avgScore || 0}
+                      value={item.percentage}
                       sx={{
-                        height: 6,
-                        borderRadius: 3,
-                        bgcolor: '#e5e7eb',
+                        height: 8,
+                        borderRadius: 0,
+                        backgroundColor: THEME.primaryBorder,
                         '& .MuiLinearProgress-bar': {
-                          bgcolor: '#10b981',
-                          borderRadius: 3,
+                          backgroundColor: barColor,
+                          borderRadius: 0,
                         },
                       }}
                     />
                   </Box>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                )
+              })
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Recent Activities / Assignments */}
-          <Card sx={{ mt: 3, borderRadius: 2 }}>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" fontWeight="bold">
+        {/* Recent Assignments — same card style as Admin Recent Activities */}
+        <Card
+          elevation={0}
+          sx={{
+            border: `1px solid ${THEME.primaryBorder}`,
+            borderRadius: 0,
+            backgroundColor: '#fff',
+          }}
+        >
+          <CardContent sx={{ py: 2.5, px: 2.5 }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Assignment sx={{ color: THEME.primary, fontSize: 22 }} />
+                <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                   Recent Assignments
                 </Typography>
-                {assignments.length > 0 && (
-                  <ButtonBase
-                    onClick={() => handleQuickAction('Assignments')}
-                    sx={{ borderRadius: 1, p: 0.5 }}
-                  >
-                    <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
-                      View all
-                    </Typography>
-                    <ChevronRight fontSize="small" color="primary" />
-                  </ButtonBase>
-                )}
               </Box>
-              {recentActivities.map((item, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    py: 1.5,
-                    borderBottom:
-                      index < recentActivities.length - 1 ? '1px solid #e5e7eb' : 'none',
-                  }}
-                >
-                  <Typography variant="body2" fontWeight={500}>
-                    {item.activity}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {item.time}
-                  </Typography>
-                </Box>
-              ))}
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Quick Actions */}
-        <Box>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
-                Quick Actions
-              </Typography>
-              <Box display="flex" flexDirection="column" gap={1.5}>
+              {assignments.length > 0 && (
                 <ButtonBase
                   onClick={() => handleQuickAction('Assignments')}
-                  sx={{
-                    display: 'block',
-                    p: 2,
-                    textAlign: 'left',
-                    bgcolor: '#f0f9ff',
-                    borderRadius: 2,
-                    borderLeft: '4px solid #3b82f6',
-                    '&:hover': { bgcolor: '#e0f2fe' },
-                  }}
+                  sx={{ borderRadius: 0, p: 0.5 }}
                 >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold" mb={0.5}>
-                        Create / Manage Assignments
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Add assignments and upload grades
-                      </Typography>
-                    </Box>
-                    <Add fontSize="small" sx={{ color: '#3b82f6' }} />
-                  </Box>
+                  <Typography variant="body2" sx={{ color: THEME.primary, fontWeight: 600 }}>
+                    View all
+                  </Typography>
+                  <ChevronRight fontSize="small" sx={{ color: THEME.primary }} />
                 </ButtonBase>
-                <ButtonBase
-                  onClick={() => handleQuickAction('Study Resources')}
-                  sx={{
-                    display: 'block',
-                    p: 2,
-                    textAlign: 'left',
-                    bgcolor: '#f0fdf4',
-                    borderRadius: 2,
-                    borderLeft: '4px solid #10b981',
-                    '&:hover': { bgcolor: '#dcfce7' },
-                  }}
-                >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold" mb={0.5}>
-                        Upload Study Resource
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Share materials with students
-                      </Typography>
-                    </Box>
-                    <MenuBook fontSize="small" sx={{ color: '#10b981' }} />
-                  </Box>
-                </ButtonBase>
-                <ButtonBase
-                  onClick={() => handleQuickAction('Student Performance')}
-                  sx={{
-                    display: 'block',
-                    p: 2,
-                    textAlign: 'left',
-                    bgcolor: '#fef3c7',
-                    borderRadius: 2,
-                    borderLeft: '4px solid #f59e0b',
-                    '&:hover': { bgcolor: '#fde68a' },
-                  }}
-                >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold" mb={0.5}>
-                        View Student Performance
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Check detailed analytics
-                      </Typography>
-                    </Box>
-                    <Assessment fontSize="small" sx={{ color: '#f59e0b' }} />
-                  </Box>
-                </ButtonBase>
-                <ButtonBase
-                  onClick={() => handleQuickAction('Attendance')}
-                  sx={{
-                    display: 'block',
-                    p: 2,
-                    textAlign: 'left',
-                    bgcolor: '#f5f3ff',
-                    borderRadius: 2,
-                    borderLeft: '4px solid #8b5cf6',
-                    '&:hover': { bgcolor: '#ede9fe' },
-                  }}
-                >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold" mb={0.5}>
-                        Upload Attendance
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Mark daily attendance
-                      </Typography>
-                    </Box>
-                    <ChevronRight fontSize="small" sx={{ color: '#8b5cf6' }} />
-                  </Box>
-                </ButtonBase>
+              )}
+            </Box>
+            {recentActivities.map((item, index) => (
+              <Box
+                key={index}
+                sx={{
+                  py: 1.75,
+                  borderBottom:
+                    index < recentActivities.length - 1
+                      ? `1px solid ${THEME.primaryBorder}`
+                      : 'none',
+                }}
+              >
+                <Typography variant="body2" fontWeight="500" sx={{ color: THEME.textDark }}>
+                  {item.activity}
+                </Typography>
+                <Typography variant="caption" sx={{ color: THEME.muted }}>
+                  {item.time}
+                </Typography>
               </Box>
-            </CardContent>
-          </Card>
+            ))}
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Quick Actions — same button style as Admin Add User */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="subtitle2" fontWeight="600" sx={{ color: THEME.textDark, mb: 1.5 }}>
+          Quick Actions
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1.5,
+          }}
+        >
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <ButtonBase
+              onClick={() => handleQuickAction('Assignments')}
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderRadius: 0,
+                backgroundColor: THEME.primaryLight,
+                border: `1px solid ${THEME.primaryBorder}`,
+                '&:hover': { backgroundColor: '#DBEAFE' },
+              }}
+            >
+              <Add sx={{ color: THEME.primary, mr: 1, fontSize: 20 }} />
+              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.primary }}>
+                Assignments
+              </Typography>
+            </ButtonBase>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <ButtonBase
+              onClick={() => handleQuickAction('Study Resources')}
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderRadius: 0,
+                backgroundColor: THEME.primaryLight,
+                border: `1px solid ${THEME.primaryBorder}`,
+                '&:hover': { backgroundColor: '#DBEAFE' },
+              }}
+            >
+              <MenuBook sx={{ color: THEME.primary, mr: 1, fontSize: 20 }} />
+              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.primary }}>
+                Study Resources
+              </Typography>
+            </ButtonBase>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <ButtonBase
+              onClick={() => handleQuickAction('Student Performance')}
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderRadius: 0,
+                backgroundColor: THEME.primaryLight,
+                border: `1px solid ${THEME.primaryBorder}`,
+                '&:hover': { backgroundColor: '#DBEAFE' },
+              }}
+            >
+              <Assessment sx={{ color: THEME.primary, mr: 1, fontSize: 20 }} />
+              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.primary }}>
+                Student Performance
+              </Typography>
+            </ButtonBase>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <ButtonBase
+              onClick={() => handleQuickAction('Attendance')}
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderRadius: 0,
+                backgroundColor: THEME.primaryLight,
+                border: `1px solid ${THEME.primaryBorder}`,
+                '&:hover': { backgroundColor: '#DBEAFE' },
+              }}
+            >
+              <EventNote sx={{ color: THEME.primary, mr: 1, fontSize: 20 }} />
+              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.primary }}>
+                Attendance
+              </Typography>
+            </ButtonBase>
+          </motion.div>
         </Box>
       </Box>
     </Box>

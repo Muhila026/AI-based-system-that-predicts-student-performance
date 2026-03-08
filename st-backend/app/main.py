@@ -74,34 +74,6 @@ app.include_router(enquire_router)
 app.include_router(enroll_router)
 app.include_router(payments_router)
 
-# Theory & Techniques
-from app.routes.learning import theory_router, techniques_router
-app.include_router(theory_router)
-app.include_router(techniques_router)
-
-# Content & Engagement
-from app.routes.content import (
-    choreography_router, choreography_teachers_router, choreography_search_router,
-    games_router, game_details_router, game_user_router,
-    challenges_router, challenge_completions_router,
-    events_router, event_bookings_router,
-    reels_router, reel_comments_router,
-    user_likes_router,
-)
-app.include_router(choreography_router)
-app.include_router(choreography_teachers_router)
-app.include_router(choreography_search_router)
-app.include_router(games_router)
-app.include_router(game_details_router)
-app.include_router(game_user_router)
-app.include_router(challenges_router)
-app.include_router(challenge_completions_router)
-app.include_router(events_router)
-app.include_router(event_bookings_router)
-app.include_router(reels_router)
-app.include_router(reel_comments_router)
-app.include_router(user_likes_router)
-
 # Chat & Messaging
 from app.routes.chat import (
     chats_router, chat_members_router,
@@ -115,17 +87,6 @@ app.include_router(message_reactions_router)
 app.include_router(message_reads_router)
 app.include_router(notifications_router)
 
-# Workout & Preferences
-from app.routes.extras import (
-    workout_tabs_router, workout_videos_router,
-    pref_questions_router, pref_answers_router, pref_router,
-)
-app.include_router(workout_tabs_router)
-app.include_router(workout_videos_router)
-app.include_router(pref_questions_router)
-app.include_router(pref_answers_router)
-app.include_router(pref_router)
-
 # Users (roles for admin UI)
 from app.routes.users_roles import router as users_roles_router
 app.include_router(users_roles_router)
@@ -133,6 +94,10 @@ app.include_router(users_roles_router)
 # Admin Dashboard & user management
 from app.routes.admin import router as admin_router
 app.include_router(admin_router)
+
+# Schema collections: subjects, student_subjects, teacher_subjects, student_subject_marks, predictions
+from app.routes.schema_collections import router as schema_router
+app.include_router(schema_router)
 
 # Student Performance & ML Prediction
 from app.routes.prediction import (

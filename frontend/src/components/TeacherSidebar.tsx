@@ -9,46 +9,62 @@ import {
   Box,
   Typography,
   Divider,
+  Tooltip,
+  Avatar,
+  Button,
 } from '@mui/material'
 import {
   Dashboard as DashboardIcon,
   Assessment as AssessmentIcon,
   Assignment as AssignmentIcon,
+  AssignmentTurnedIn as AssignmentsIcon,
   FolderOpen as FolderOpenIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
   Chat as ChatIcon,
   EventNote as EventNoteIcon,
   Groups as GroupsIcon,
   MenuBook as MenuBookIcon,
   Grade as GradeIcon,
-  Analytics as AnalyticsIcon,
   ThumbUp as ThumbUpIcon,
+  SmartToy as SmartToyIcon,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
+import { getCurrentUser } from '../lib/api'
 
 const drawerWidth = 280
+const SIDEBAR = {
+  bg: '#ffffff',
+  leftBorder: '4px solid #DBEAFE',
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  inactive: '#9CA3AF',
+  textDark: '#1F2937',
+  logoutRed: '#dc2626',
+  logoutRedLight: '#fef2f2',
+  accountSectionBg: '#F9FAFB',
+  accountSectionBorder: '#E5E7EB',
+}
 
 interface MenuItem {
   text: string
   icon: React.ReactNode
+  tooltip?: string
   divider?: boolean
 }
 
 const menuItems: MenuItem[] = [
-  { text: 'Dashboard', icon: <DashboardIcon /> },
-  { text: 'Student Performance', icon: <AssessmentIcon /> },
-  { text: 'Modules', icon: <MenuBookIcon /> },
-  { text: 'Assessments', icon: <AssignmentIcon /> },
-  { text: 'Student Results', icon: <GradeIcon /> },
-  { text: 'Attendance', icon: <EventNoteIcon /> },
-  { text: 'Participation', icon: <ThumbUpIcon /> },
-  { text: 'Manage Students', icon: <GroupsIcon /> },
-  { text: 'Study Resources', icon: <FolderOpenIcon /> },
-  { text: 'Analysis', icon: <AnalyticsIcon /> },
-  { text: 'Chat', icon: <ChatIcon /> },
-  { text: 'Profile', icon: <SettingsIcon /> },
-  { text: 'Logout', icon: <LogoutIcon />, divider: true },
+  { text: 'Dashboard', icon: <DashboardIcon />, tooltip: 'Overview and key metrics' },
+  { text: 'Student Performance', icon: <AssessmentIcon />, tooltip: 'View student performance' },
+  { text: 'Subjects', icon: <MenuBookIcon />, tooltip: 'My subjects' },
+  { text: 'Assessments', icon: <AssignmentIcon />, tooltip: 'Exams, quizzes and assessments' },
+  { text: 'Assignments', icon: <AssignmentsIcon />, tooltip: 'Create and manage assignments' },
+  { text: 'Student Results', icon: <GradeIcon />, tooltip: 'Student grades and results' },
+  { text: 'Attendance', icon: <EventNoteIcon />, tooltip: 'Mark and view attendance' },
+  { text: 'Participation', icon: <ThumbUpIcon />, tooltip: 'Participation ratings' },
+  { text: 'Manage Students', icon: <GroupsIcon />, tooltip: 'Student list and management' },
+  { text: 'Study Resources', icon: <FolderOpenIcon />, tooltip: 'Upload and manage materials' },
+  { text: 'Chat', icon: <ChatIcon />, tooltip: 'Message students' },
+  { text: 'Chatbot Support', icon: <SmartToyIcon />, tooltip: 'AI study assistant' },
 ]
 
 interface TeacherSidebarProps {
@@ -57,6 +73,10 @@ interface TeacherSidebarProps {
 }
 
 const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectPage }) => {
+  const user = getCurrentUser()
+  const displayName = user.name || 'Teacher'
+  const subtitle = (user.role || 'teacher').charAt(0).toUpperCase() + (user.role || 'teacher').slice(1)
+
   return (
     <Drawer
       variant="permanent"
@@ -66,13 +86,17 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectP
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
-          background: 'linear-gradient(180deg, #10b981 0%, #059669 100%)',
-          color: 'white',
+          backgroundColor: SIDEBAR.bg,
           borderRight: 'none',
+          borderLeft: SIDEBAR.leftBorder,
+          boxShadow: '2px 0 12px rgba(30, 58, 138, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
         },
       }}
     >
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ px: 2, pt: 3, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -82,67 +106,150 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectP
             component="img"
             src="/logo.png"
             alt="Cloud Campus"
-            sx={{ width: 96, height: 96, objectFit: 'contain' }}
+            sx={{ width: 56, height: 56, objectFit: 'contain' }}
           />
         </motion.div>
-        <Box textAlign="center">
-          <Typography variant="h6" fontWeight="bold">
-            Teacher Portal
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            Manage & Track Students
-          </Typography>
-        </Box>
+        <Typography variant="h6" fontWeight="700" sx={{ color: SIDEBAR.textDark, fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.02em' }}>
+          Cloud Campus
+        </Typography>
       </Box>
+      <Typography variant="caption" sx={{ px: 2, color: SIDEBAR.textDark, display: 'block', mb: 2, fontWeight: 500, flexShrink: 0 }}>
+        Teacher Portal
+      </Typography>
 
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+      <Divider sx={{ borderColor: '#E5E7EB', mx: 2, flexShrink: 0 }} />
 
-      <List sx={{ px: 2, py: 3 }}>
-        {menuItems.map((item, index) => (
-          <React.Fragment key={item.text}>
-            {item.divider && (
-              <Divider sx={{ my: 2, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-            )}
+      <List sx={{ px: 1.5, py: 2, flex: 1, overflow: 'auto', minHeight: 0 }}>
+        {menuItems.map((item, index) => {
+          const isSelected = selectedPage === item.text
+          return (
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              key={item.text}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
+              transition={{ delay: index * 0.03 }}
             >
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  selected={selectedPage === item.text}
-                  onClick={() => onSelectPage(item.text)}
+                <ListItem disablePadding sx={{ mb: 0.25 }}>
+                  <Tooltip title={item.tooltip || item.text} placement="right" arrow>
+                    <ListItemButton
+                      selected={isSelected}
+                      onClick={() => onSelectPage(item.text)}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 0,
+                    borderLeft: isSelected ? `4px solid ${SIDEBAR.primary}` : '4px solid transparent',
+                    pl: isSelected ? 1.5 : 2,
+                    py: 1.25,
                     '&.Mui-selected': {
-                      bgcolor: 'rgba(255, 255, 255, 0.15)',
-                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.2)' },
+                      backgroundColor: SIDEBAR.primaryLight,
+                      '&:hover': { backgroundColor: '#DBEAFE' },
                     },
-                    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                    transition: 'all 0.3s ease',
+                    '&:hover': { backgroundColor: '#F9FAFB' },
+                    transition: 'all 0.2s ease',
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  <ListItemIcon sx={{ color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark, minWidth: 40 }}>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText
                     primary={item.text}
                     primaryTypographyProps={{
-                      fontSize: '0.95rem',
-                      fontWeight: selectedPage === item.text ? 600 : 400,
+                      fontSize: '0.9rem',
+                      fontWeight: isSelected ? 600 : 500,
+                      color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark,
                     }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </motion.div>
-          </React.Fragment>
-        ))}
+                    />
+                    </ListItemButton>
+                  </Tooltip>
+                </ListItem>
+              </motion.div>
+          )
+        })}
       </List>
 
-      <Box sx={{ mt: 'auto', p: 2, textAlign: 'center' }}>
-        <Typography variant="caption" sx={{ opacity: 0.6 }}>
-          © 2025 Teacher Portal
-        </Typography>
+      {/* Profile card — Help Center style */}
+      <Box sx={{ px: 2, py: 2, flexShrink: 0, mt: 'auto' }}>
+        <Divider sx={{ borderColor: SIDEBAR.accountSectionBorder, mb: 2 }} />
+        <Box
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${SIDEBAR.accountSectionBorder}`,
+            backgroundColor: SIDEBAR.accountSectionBg,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            overflow: 'visible',
+            position: 'relative',
+            pt: 3.5,
+            pb: 2,
+            px: 2,
+            textAlign: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: 0,
+              transform: 'translate(-50%, -50%)',
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              backgroundColor: SIDEBAR.primaryLight,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: SIDEBAR.primary,
+              border: `2px solid ${SIDEBAR.bg}`,
+              boxShadow: '0 2px 8px rgba(30, 58, 138, 0.15)',
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 48,
+                height: 48,
+                bgcolor: SIDEBAR.primary,
+                fontSize: '1.25rem',
+              }}
+            >
+              {displayName.charAt(0).toUpperCase()}
+            </Avatar>
+          </Box>
+          <Typography variant="subtitle1" fontWeight="700" sx={{ color: SIDEBAR.textDark, mb: 0.5 }}>
+            {displayName}
+          </Typography>
+          <Typography variant="caption" sx={{ color: SIDEBAR.inactive, display: 'block', mb: 2 }}>
+            {subtitle}
+          </Typography>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => onSelectPage('Profile')}
+            sx={{
+              backgroundColor: SIDEBAR.primary,
+              borderRadius: 1.5,
+              py: 1.25,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              '&:hover': { backgroundColor: '#1e40af' },
+            }}
+          >
+            View profile
+          </Button>
+          <Button
+            fullWidth
+            size="small"
+            startIcon={<LogoutIcon />}
+            onClick={() => onSelectPage('Logout')}
+            sx={{
+              color: SIDEBAR.logoutRed,
+              mt: 1.5,
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': { backgroundColor: SIDEBAR.logoutRedLight },
+            }}
+          >
+            Logout
+          </Button>
+        </Box>
       </Box>
     </Drawer>
   )

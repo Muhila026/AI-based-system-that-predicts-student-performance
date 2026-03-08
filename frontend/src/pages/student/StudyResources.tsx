@@ -20,6 +20,14 @@ import {
 import { motion } from 'framer-motion'
 import { getStudentStudyResources, downloadStudyResource, type StudyResource } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 const StudentStudyResources: React.FC = () => {
   const [resources, setResources] = useState<StudyResource[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,7 +78,7 @@ const StudentStudyResources: React.FC = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -82,60 +90,60 @@ const StudentStudyResources: React.FC = () => {
         </Alert>
       </Snackbar>
 
-      <Box mb={3}>
-        <Typography variant="h4" fontWeight="bold">
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
           Study Resources
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
           Download learning materials shared by your teachers
         </Typography>
       </Box>
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
+          <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : resources.length === 0 ? (
-        <Card>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
           <CardContent>
-            <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+            <Typography variant="body1" sx={{ color: THEME.muted }} textAlign="center" py={4}>
               No study resources available yet.
             </Typography>
           </CardContent>
         </Card>
       ) : (
         <>
-          <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(4, 1fr)' }} gap={2} mb={3}>
-            <Card sx={{ bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
-              <CardContent>
-                <Typography variant="h5" fontWeight="bold" color="#0369a1">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, bgcolor: THEME.primaryLight }}>
+              <CardContent sx={{ py: 2, px: 2 }}>
+                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.primary }}>
                   {resources.length}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">Total Resources</Typography>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>Total Resources</Typography>
               </CardContent>
             </Card>
-            <Card sx={{ bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
-              <CardContent>
-                <Typography variant="h5" fontWeight="bold" color="#991b1b">
+            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+              <CardContent sx={{ py: 2, px: 2 }}>
+                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
                   {resources.filter((r) => r.type === 'PDF').length}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">PDFs</Typography>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>PDFs</Typography>
               </CardContent>
             </Card>
-            <Card sx={{ bgcolor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
-              <CardContent>
-                <Typography variant="h5" fontWeight="bold" color="#6d28d9">
+            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+              <CardContent sx={{ py: 2, px: 2 }}>
+                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
                   {resources.filter((r) => r.type === 'Video').length}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">Videos</Typography>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>Videos</Typography>
               </CardContent>
             </Card>
-            <Card sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-              <CardContent>
-                <Typography variant="h5" fontWeight="bold" color="#15803d">
+            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+              <CardContent sx={{ py: 2, px: 2 }}>
+                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
                   {resources.reduce((sum, r) => sum + (r.downloads || 0), 0)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">Total Downloads</Typography>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>Total Downloads</Typography>
               </CardContent>
             </Card>
           </Box>
@@ -148,7 +156,7 @@ const StudentStudyResources: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <Card>
+                <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
                   <CardContent>
                     <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
                       <Box display="flex" alignItems="center" gap={2} flexGrow={1}>
@@ -166,23 +174,23 @@ const StudentStudyResources: React.FC = () => {
                           {getFileIcon(resource.type)}
                         </Box>
                         <Box flexGrow={1}>
-                          <Typography variant="h6" fontWeight="bold">
+                          <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                             {resource.title}
                           </Typography>
                           <Box display="flex" gap={2} mt={0.5} flexWrap="wrap">
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
                               📚 {resource.class_name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
                               📦 {resource.size}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
                               📅 {resource.uploadDate}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
                               👤 {resource.teacherName || '—'}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
                               ⬇️ {resource.downloads ?? 0} downloads
                             </Typography>
                           </Box>
@@ -212,8 +220,11 @@ const StudentStudyResources: React.FC = () => {
                         startIcon={<Download />}
                         onClick={() => handleDownload(resource)}
                         sx={{
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          '&:hover': { background: 'linear-gradient(135deg, #5568d3 0%, #6941a0 100%)' },
+                          backgroundColor: THEME.primary,
+                          borderRadius: 0,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          '&:hover': { backgroundColor: '#1e40af' },
                         }}
                       >
                         Download

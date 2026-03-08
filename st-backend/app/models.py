@@ -754,3 +754,81 @@ class PipelineMlFeaturesResponse(BaseModel):
     attendance_percentage: float
     class_participation: float
     total_score: float
+
+
+# ==================== SCHEMA: Subjects, Student/Teacher Subjects, Marks, Predictions ====================
+class SubjectCreate(BaseModel):
+    id: str  # e.g. SUB101
+    subject_name: str  # subject/course name (single field)
+
+
+class SubjectResponse(BaseModel):
+    _id: str
+    subject_name: str
+
+
+class StudentSubjectCreate(BaseModel):
+    id: str  # e.g. SS101
+    student_id: str
+    subject_id: str
+
+
+class StudentSubjectResponse(BaseModel):
+    _id: str
+    student_id: str
+    subject_id: str
+
+
+class TeacherSubjectCreate(BaseModel):
+    id: str  # e.g. TS101
+    teacher_id: str
+    subject_id: str
+
+
+class TeacherSubjectResponse(BaseModel):
+    _id: str
+    teacher_id: str
+    subject_id: str
+
+
+class StudentSubjectMarksCreate(BaseModel):
+    id: str  # e.g. AS101
+    student_id: str
+    subject_id: str
+    assignment: float = 0
+    quiz: float = 0
+    mid_exam: float = 0
+    attendance: float = 0
+
+
+class StudentSubjectMarksResponse(BaseModel):
+    _id: str
+    student_id: str
+    subject_id: str
+    assignment: float
+    quiz: float
+    mid_exam: float
+    attendance: float
+
+
+class SubjectAssignmentCreate(BaseModel):
+    """Assignment created by the subject's teacher; assigned to all students enrolled in that subject."""
+    subject_id: str
+    title: str
+    description: Optional[str] = None
+    max_marks: float = 100.0
+    assignment_type: str = "ASSIGNMENT"  # ASSIGNMENT | QUIZ | EXAM
+
+
+class PredictionCreate(BaseModel):
+    student_id: str
+    subject_id: str
+    predicted_result: str  # e.g. Pass, Fail
+    risk_level: str  # e.g. Low, Medium, High
+
+
+class PredictionRecordResponse(BaseModel):
+    student_id: str
+    subject_id: str
+    predicted_result: str
+    risk_level: str

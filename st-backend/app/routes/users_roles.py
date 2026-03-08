@@ -10,8 +10,9 @@ from app.auth import require_role
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
+SYSTEM_ROLE_KEYS = {"Student", "Teacher", "Admin"}
 
-ROLES = [
+DEFAULT_ROLES = [
     {"roleKey": "Student", "displayName": "Student", "description": "Student role"},
     {"roleKey": "Teacher", "displayName": "Teacher", "description": "Teacher role"},
     {"roleKey": "Admin", "displayName": "Admin", "description": "Administrator role"},
@@ -22,9 +23,91 @@ def _now_iso() -> str:
     return datetime.utcnow().isoformat()
 
 
+async def _ensure_roles_seeded(db):
+    """Ensure roles collection has at least the default system roles."""
+    count = await db.roles.count_documents({})
+    if count == 0:
+        for r in DEFAULT_ROLES:
+            await db.roles.insert_one({
+                **r,
+                "createdAt": _now_iso(),
+                "updatedAt": _now_iso(),
+            })
+    return await db.roles.find({}, {"_id": 0}).to_list(length=100)
+
+
 @router.get("/roles")
 async def get_roles():
-    return ROLES
+    db = get_database()
+    roles_list = await _ensure_roles_seeded(db)
+    return [{"roleKey": r["roleKey"], "displayName": r["displayName"], "description": r.get("description", "")} for r in roles_list]
+
+
+@router.post("/roles")
+async def create_role(
+    body: dict = Body(...),
+    user: dict = Depends(require_role(["admin"])),
+):
+    """Create a new role (admin only)."""
+    db = get_database()
+    await _ensure_roles_seeded(db)
+    role_key = (body.get("roleKey") or "").strip()
+    display_name = (body.get("displayName") or "").strip()
+    if not role_key or not display_name:
+        raise HTTPException(status_code=400, detail="roleKey and displayName are required")
+    if not role_key[0].isalpha() or not all(c.isalnum() or c == "_" for c in role_key):
+        raise HTTPException(status_code=400, detail="roleKey must start with a letter and contain only letters, numbers, underscore")
+    existing = await db.roles.find_one({"roleKey": role_key})
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Role '{role_key}' already exists")
+    now = _now_iso()
+    doc = {
+        "roleKey": role_key,
+        "displayName": display_name,
+        "description": (body.get("description") or "").strip(),
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    await db.roles.insert_one(doc)
+    return {"roleKey": doc["roleKey"], "displayName": doc["displayName"], "description": doc.get("description", "")}
+
+
+@router.put("/roles/{role_key}")
+async def update_role(
+    role_key: str,
+    body: dict = Body(...),
+    user: dict = Depends(require_role(["admin"])),
+):
+    """Update role displayName/description (admin only)."""
+    db = get_database()
+    await _ensure_roles_seeded(db)
+    existing = await db.roles.find_one({"roleKey": role_key})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Role not found")
+    now = _now_iso()
+    updates = {"updatedAt": now}
+    if "displayName" in body and body["displayName"] is not None:
+        updates["displayName"] = str(body["displayName"]).strip() or existing["displayName"]
+    if "description" in body:
+        updates["description"] = (body["description"] or "").strip()
+    await db.roles.update_one({"roleKey": role_key}, {"$set": updates})
+    updated = await db.roles.find_one({"roleKey": role_key}, {"_id": 0})
+    return {"roleKey": updated["roleKey"], "displayName": updated["displayName"], "description": updated.get("description", "")}
+
+
+@router.delete("/roles/{role_key}")
+async def delete_role(
+    role_key: str,
+    user: dict = Depends(require_role(["admin"])),
+):
+    """Delete a role (admin only). System roles cannot be deleted."""
+    if role_key in SYSTEM_ROLE_KEYS:
+        raise HTTPException(status_code=400, detail="System roles (Student, Teacher, Admin) cannot be deleted")
+    db = get_database()
+    result = await db.roles.delete_one({"roleKey": role_key})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Role not found")
+    return {"message": "Role deleted"}
 
 
 @router.get("/student/profile")

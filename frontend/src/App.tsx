@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Box } from '@mui/material'
 
 import Sidebar from './components/Sidebar'
@@ -23,26 +24,17 @@ import TeacherModules from './pages/teacher/Modules'
 import TeacherAssessments from './pages/teacher/Assessments'
 import StudentResults from './pages/teacher/StudentResults'
 import TeacherAssignments from './pages/teacher/Assignments'
-import TeacherFeedback from './pages/teacher/Feedback'
 import TeacherChat from './pages/teacher/Chat'
 import UploadAttendance from './pages/teacher/UploadAttendance'
 import ParticipationRating from './pages/teacher/ParticipationRating'
 import ManageStudents from './pages/teacher/ManageStudents'
 import StudyResources from './pages/teacher/StudyResources'
-import TeacherAnalysis from './pages/teacher/Analysis'
-import TeacherReports from './pages/teacher/Reports'
 import TeacherProfile from './pages/teacher/Profile'
 
 import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/admin/Dashboard'
 import UserManagement from './pages/admin/UserManagement'
-import TeacherManagement from './pages/admin/TeacherManagement'
-import StudentManagement from './pages/admin/StudentManagement'
-import CourseManagement from './pages/admin/CourseManagement'
-import AssessmentManagement from './pages/admin/AssessmentManagement'
-import AdminReports from './pages/admin/Reports'
-import AdminAnalysis from './pages/admin/Analysis'
-import Announcements from './pages/admin/Announcements'
+import SchemaManagement from './pages/admin/SchemaManagement'
 import AdminProfile from './pages/admin/Profile'
 
 import Login from './pages/Login'
@@ -60,12 +52,14 @@ interface UserData {
 
 /** Normalize backend role (ADMIN/TEACHER/STUDENT) to lowercase for UI. */
 function normalizeRole(role: string): string {
-  const r = (role || '').toLowerCase()
-  if (r === 'super_admin') return 'admin'
-  return r === 'admin' || r === 'teacher' || r === 'student' ? r : 'student'
+  const r = (role || '').toString().trim().toLowerCase()
+  if (r === 'super_admin' || r === 'administrator') return 'admin'
+  if (r === 'admin' || r === 'teacher' || r === 'student') return r
+  return 'student'
 }
 
 const App: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [userRole, setUserRole] = useState<string>('')
   const [selectedPage, setSelectedPage] = useState<string>('Dashboard')
@@ -77,44 +71,52 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
-    if (userStr) {
-      try {
-        const user: UserData = JSON.parse(userStr)
-        const token = user.token
-        let role = normalizeRole(user.role || '')
-        if (token && (role === 'student' || role === '')) {
-          const payload = decodeJwtPayload(token)
-          if (payload.role) role = normalizeRole(payload.role)
-        }
-        setIsAuthenticated(true)
-        setUserRole(role)
-      } catch {
-        localStorage.removeItem('user')
-        sessionStorage.removeItem('user')
-        setIsAuthenticated(false)
-        setUserRole('')
+    if (!userStr) return
+    try {
+      const user: UserData = JSON.parse(userStr)
+      let role = normalizeRole((user.role || '').toString())
+      if (user.token) {
+        const payload = decodeJwtPayload(user.token)
+        const tokenRole = payload.role ? normalizeRole(payload.role.toString()) : ''
+        if (tokenRole) role = tokenRole
       }
+      setIsAuthenticated(true)
+      setUserRole(role)
+    } catch {
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+      setIsAuthenticated(false)
+      setUserRole('')
     }
   }, [])
 
+  // When authenticated, read initial page from URL (?page=...)
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const pageFromUrl = searchParams.get('page')
+    if (pageFromUrl && pageFromUrl.trim()) {
+      setSelectedPage(pageFromUrl.trim())
+    }
+  }, [isAuthenticated])
+
   const handleLogin = () => {
     const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
-    if (userStr) {
-      try {
-        const user: UserData = JSON.parse(userStr)
-        let role = normalizeRole(user.role || '')
-        if (user.token) {
-          const payload = decodeJwtPayload(user.token)
-          if (payload.role) role = normalizeRole(payload.role)
-        }
-        setIsAuthenticated(true)
-        setUserRole(role)
-      } catch {
-        localStorage.removeItem('user')
-        sessionStorage.removeItem('user')
-        setIsAuthenticated(false)
-        setUserRole('')
+    if (!userStr) return
+    try {
+      const user: UserData = JSON.parse(userStr)
+      let role = normalizeRole((user.role || '').toString())
+      if (user.token) {
+        const payload = decodeJwtPayload(user.token)
+        const tokenRole = payload.role ? normalizeRole(payload.role.toString()) : ''
+        if (tokenRole) role = tokenRole
       }
+      setIsAuthenticated(true)
+      setUserRole(role)
+    } catch {
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+      setIsAuthenticated(false)
+      setUserRole('')
     }
   }
 
@@ -124,6 +126,7 @@ const App: React.FC = () => {
     setIsAuthenticated(false)
     setUserRole('')
     setSelectedPage('Dashboard')
+    setSearchParams({}, { replace: true })
   }
 
   const handlePageSelect = (page: string) => {
@@ -131,6 +134,7 @@ const App: React.FC = () => {
       handleLogout()
     } else {
       setSelectedPage(page)
+      setSearchParams({ page }, { replace: true })
     }
   }
 
@@ -176,7 +180,7 @@ const App: React.FC = () => {
         return <TeacherDashboard onSelectPage={handlePageSelect} />
       case 'Student Performance':
         return <StudentPerformance />
-      case 'Modules':
+      case 'Subjects':
         return <TeacherModules />
       case 'Assessments':
         return <TeacherAssessments />
@@ -192,14 +196,10 @@ const App: React.FC = () => {
         return <ManageStudents />
       case 'Study Resources':
         return <StudyResources />
-      case 'Analysis':
-        return <TeacherAnalysis />
-      case 'Feedback':
-        return <TeacherFeedback />
       case 'Chat':
         return <TeacherChat />
-      case 'Reports':
-        return <TeacherReports />
+      case 'Chatbot Support':
+        return <ChatbotSupport />
       case 'Profile':
         return <TeacherProfile />
       default:
@@ -218,24 +218,14 @@ const App: React.FC = () => {
             onAddDialogHandled={() => setOpenAddUserDialogOnce(false)}
           />
         )
-      case 'Teacher Management':
-        return <TeacherManagement />
-      case 'Student Management':
-        return <StudentManagement />
-      case 'Course Management':
-        return <CourseManagement />
-      case 'Assessment Management':
-        return <AssessmentManagement />
-      case 'Reports':
-        return <AdminReports />
-      case 'Analysis':
-        return <AdminAnalysis />
-      case 'Announcements':
-        return <Announcements />
+      case 'Subjects & Marks':
+        return <SchemaManagement />
       case 'Study Resources':
         return <StudyResources />
       case 'Chat':
         return <SharedChat />
+      case 'Chatbot Support':
+        return <ChatbotSupport />
       case 'Profile':
         return <AdminProfile />
       default:

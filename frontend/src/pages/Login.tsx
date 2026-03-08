@@ -8,6 +8,7 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Snackbar,
 } from '@mui/material'
 import {
   PersonOutline,
@@ -15,6 +16,7 @@ import {
   Error as ErrorIcon,
   Visibility,
   VisibilityOff,
+  CheckCircle,
 } from '@mui/icons-material'
 import { login, checkBackendConnection } from '../lib/api'
 
@@ -33,6 +35,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword }) => {
     connected: false,
     checking: true,
   })
+  const [loginSuccessOpen, setLoginSuccessOpen] = useState(false)
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -60,6 +63,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword }) => {
     }
     try {
       await login(trimmedEmail, trimmedPassword)
+      setLoginSuccessOpen(true)
       onLogin()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid email or password.'
@@ -67,6 +71,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword }) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSuccessClose = (_?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') return
+    setLoginSuccessOpen(false)
+    onLogin()
   }
 
   return (
@@ -135,6 +145,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword }) => {
             {error}
           </Alert>
         )}
+
+        <Snackbar
+          open={loginSuccessOpen}
+          autoHideDuration={2000}
+          onClose={handleSuccessClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert
+            severity="success"
+            icon={<CheckCircle />}
+            onClose={() => handleSuccessClose()}
+            sx={{ width: '100%' }}
+          >
+            Login successful! Redirecting...
+          </Alert>
+        </Snackbar>
 
         <form onSubmit={handleLogin}>
           <Box sx={{ mb: 4 }}>

@@ -320,14 +320,15 @@ export async function login(email: string, password: string) {
     const emailVal = data.email ?? raw.user?.email
     const roleRaw = data.role ?? raw.user?.role ?? ''
     const role = typeof roleRaw === 'string' ? roleRaw.toLowerCase() : 'student'
+    const normalizedRole = role === 'administrator' ? 'admin' : (role === 'user' ? 'student' : role)
     const first = (data as { firstName?: string; lastName?: string }).firstName
     const last = (data as { firstName?: string; lastName?: string }).lastName
     const name = raw.user?.name ?? ([first, last].filter(Boolean).join(' ') || emailVal)
 
     const userData = {
-      email: emailVal,
-      role,
-      name,
+      email: (emailVal || '').toString().trim().toLowerCase(),
+      role: normalizedRole,
+      name: (name || emailVal || '').toString().trim(),
       token,
       id: raw.user?.id,
     }
@@ -856,6 +857,251 @@ export async function deleteRole(roleKey: string): Promise<{ message: string }> 
   return apiRequest<{ message: string }>(`/users/roles/${encodeURIComponent(roleKey)}`, {
     method: 'DELETE',
   })
+}
+
+// ==================== Schema: Subjects, Student/Teacher Subjects, Marks, Predictions ====================
+export type SchemaSubject = { _id: string; subject_name: string }
+export type SchemaStudentSubject = { _id: string; student_id: string; subject_id: string }
+export type SchemaTeacherSubject = { _id: string; teacher_id: string; subject_id: string }
+export type SchemaStudentSubjectMarks = {
+  _id: string
+  student_id: string
+  subject_id: string
+  assignment: number
+  quiz: number
+  mid_exam: number
+  attendance: number
+}
+export type SchemaPrediction = {
+  student_id: string
+  subject_id: string
+  predicted_result: string
+  risk_level: string
+}
+
+/** Subject assignment: created by the teacher who teaches that subject; assigned to all students in that subject. */
+export type SchemaSubjectAssignment = {
+  id: string
+  subject_id: string
+  subject_name: string
+  teacher_id: string
+  title: string
+  description?: string | null
+  max_marks: number
+  assignment_type: string
+  pdf_url?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export async function getSchemaSubjects(): Promise<SchemaSubject[]> {
+  try {
+    return await apiRequest<SchemaSubject[]>('/schema/subjects')
+  } catch (e) {
+    console.error('getSchemaSubjects', e)
+    return []
+  }
+}
+
+export async function createSchemaSubject(body: { id: string; subject_name: string }): Promise<SchemaSubject> {
+  return apiRequest<SchemaSubject>('/schema/subjects', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function updateSchemaSubject(subjectId: string, body: { subject_name?: string }): Promise<SchemaSubject> {
+  return apiRequest<SchemaSubject>(`/schema/subjects/${encodeURIComponent(subjectId)}`, { method: 'PUT', body: JSON.stringify(body) })
+}
+
+export async function deleteSchemaSubject(subjectId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/subjects/${encodeURIComponent(subjectId)}`, { method: 'DELETE' })
+}
+
+export async function getSchemaStudentSubjects(studentId?: string): Promise<SchemaStudentSubject[]> {
+  try {
+    const q = studentId ? `?student_id=${encodeURIComponent(studentId)}` : ''
+    return await apiRequest<SchemaStudentSubject[]>(`/schema/student-subjects${q}`)
+  } catch (e) {
+    console.error('getSchemaStudentSubjects', e)
+    return []
+  }
+}
+
+export async function createSchemaStudentSubject(body: { id: string; student_id: string; subject_id: string }): Promise<SchemaStudentSubject> {
+  return apiRequest<SchemaStudentSubject>('/schema/student-subjects', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function deleteSchemaStudentSubject(recordId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/student-subjects/${encodeURIComponent(recordId)}`, { method: 'DELETE' })
+}
+
+export async function getSchemaTeacherSubjects(teacherId?: string): Promise<SchemaTeacherSubject[]> {
+  try {
+    const q = teacherId ? `?teacher_id=${encodeURIComponent(teacherId)}` : ''
+    return await apiRequest<SchemaTeacherSubject[]>(`/schema/teacher-subjects${q}`)
+  } catch (e) {
+    console.error('getSchemaTeacherSubjects', e)
+    return []
+  }
+}
+
+/** Current teacher's subjects from teacher_subjects table (with subject_name). Use for My Subjects page. */
+export type TeacherSubjectWithName = {
+  id: string
+  teacher_id: string
+  subject_id: string
+  subject_name: string
+}
+
+export async function getTeacherMySubjects(): Promise<TeacherSubjectWithName[]> {
+  const raw = await apiRequest<TeacherSubjectWithName[] | { data?: TeacherSubjectWithName[] }>('/teachers/my-subjects')
+  const arr = Array.isArray(raw) ? raw : (raw?.data ?? [])
+  return Array.isArray(arr) ? arr : []
+}
+
+export async function createSchemaTeacherSubject(body: { id: string; teacher_id: string; subject_id: string }): Promise<SchemaTeacherSubject> {
+  return apiRequest<SchemaTeacherSubject>('/schema/teacher-subjects', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function deleteSchemaTeacherSubject(recordId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/teacher-subjects/${encodeURIComponent(recordId)}`, { method: 'DELETE' })
+}
+
+export async function getSchemaStudentSubjectMarks(studentId?: string, subjectId?: string): Promise<SchemaStudentSubjectMarks[]> {
+  try {
+    const params = new URLSearchParams()
+    if (studentId) params.append('student_id', studentId)
+    if (subjectId) params.append('subject_id', subjectId)
+    const q = params.toString() ? `?${params.toString()}` : ''
+    return await apiRequest<SchemaStudentSubjectMarks[]>(`/schema/student-subject-marks${q}`)
+  } catch (e) {
+    console.error('getSchemaStudentSubjectMarks', e)
+    return []
+  }
+}
+
+export async function createOrUpdateSchemaStudentSubjectMarks(body: {
+  id: string
+  student_id: string
+  subject_id: string
+  assignment?: number
+  quiz?: number
+  mid_exam?: number
+  attendance?: number
+}): Promise<SchemaStudentSubjectMarks> {
+  return apiRequest<SchemaStudentSubjectMarks>('/schema/student-subject-marks', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: body.id,
+      student_id: body.student_id,
+      subject_id: body.subject_id,
+      assignment: body.assignment ?? 0,
+      quiz: body.quiz ?? 0,
+      mid_exam: body.mid_exam ?? 0,
+      attendance: body.attendance ?? 0,
+    }),
+  })
+}
+
+export async function deleteSchemaStudentSubjectMarks(recordId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/student-subject-marks/${encodeURIComponent(recordId)}`, { method: 'DELETE' })
+}
+
+export async function getSchemaPredictions(studentId?: string, subjectId?: string): Promise<SchemaPrediction[]> {
+  try {
+    const params = new URLSearchParams()
+    if (studentId) params.append('student_id', studentId)
+    if (subjectId) params.append('subject_id', subjectId)
+    const q = params.toString() ? `?${params.toString()}` : ''
+    return await apiRequest<SchemaPrediction[]>(`/schema/predictions${q}`)
+  } catch (e) {
+    console.error('getSchemaPredictions', e)
+    return []
+  }
+}
+
+export async function createOrUpdateSchemaPrediction(body: {
+  student_id: string
+  subject_id: string
+  predicted_result: string
+  risk_level: string
+}): Promise<SchemaPrediction> {
+  return apiRequest<SchemaPrediction>('/schema/predictions', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function deleteSchemaPrediction(studentId: string, subjectId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/predictions?student_id=${encodeURIComponent(studentId)}&subject_id=${encodeURIComponent(subjectId)}`, { method: 'DELETE' })
+}
+
+export async function getSchemaAssignments(subjectId?: string): Promise<SchemaSubjectAssignment[]> {
+  try {
+    const q = subjectId ? `?subject_id=${encodeURIComponent(subjectId)}` : ''
+    return await apiRequest<SchemaSubjectAssignment[]>(`/schema/assignments${q}`)
+  } catch (e) {
+    console.error('getSchemaAssignments', e)
+    return []
+  }
+}
+
+export async function createSchemaAssignment(body: {
+  subject_id: string
+  title: string
+  description?: string
+  max_marks?: number
+  assignment_type?: string
+}): Promise<SchemaSubjectAssignment> {
+  return apiRequest<SchemaSubjectAssignment>('/schema/assignments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** Upload a PDF file for an assignment. Call after creating the assignment if user selected a file. */
+export async function uploadSchemaAssignmentPdf(assignmentId: string, file: File): Promise<void> {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${API_BASE_URL}/schema/assignments/${encodeURIComponent(assignmentId)}/pdf`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Upload failed' }))
+    throw new Error(err?.detail || `Upload failed: ${response.status}`)
+  }
+}
+
+/** Download assignment PDF (authenticated). Returns blob to save or open. */
+export async function getAssignmentPdfBlob(assignmentId: string): Promise<Blob> {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const response = await fetch(`${API_BASE_URL}/schema/assignments/files/${encodeURIComponent(assignmentId)}`, { headers })
+  if (!response.ok) throw new Error('Failed to load PDF')
+  return response.blob()
+}
+
+export async function updateSchemaAssignment(
+  assignmentId: string,
+  body: { title?: string; description?: string; max_marks?: number; assignment_type?: string }
+): Promise<SchemaSubjectAssignment> {
+  return apiRequest<SchemaSubjectAssignment>(`/schema/assignments/${encodeURIComponent(assignmentId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteSchemaAssignment(assignmentId: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(`/schema/assignments/${encodeURIComponent(assignmentId)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function getSchemaAssignmentStudents(assignmentId: string): Promise<Array<{ student_id: string; student_name: string; email: string }>> {
+  return apiRequest<Array<{ student_id: string; student_name: string; email: string }>>(
+    `/schema/assignments/${encodeURIComponent(assignmentId)}/students`
+  )
 }
 
 export async function getUsers(): Promise<AdminUser[]> {

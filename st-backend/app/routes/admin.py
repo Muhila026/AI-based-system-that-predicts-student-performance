@@ -477,6 +477,33 @@ async def update_user(email: str, body: AdminUpdateUserRequest, user: dict = Dep
     return users
 
 
+@router.put("/change-user-password")
+async def change_user_password(
+    body: dict = Body(...),
+    user: dict = Depends(require_role(["admin"])),
+):
+    """Admin: set a user's password by email. Frontend sends { email, new_password }."""
+    from urllib.parse import unquote
+    db = get_database()
+    email = (body.get("email") or "").strip()
+    if email:
+        email = unquote(email)
+    new_password = (body.get("new_password") or "").strip()
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if not email:
+        raise HTTPException(status_code=400, detail="email is required")
+    found = await db.users.find_one({"email": email})
+    if not found:
+        raise HTTPException(status_code=404, detail="User not found")
+    now = datetime.utcnow().isoformat()
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"password": encode_password(new_password), "updatedAt": now}},
+    )
+    return {"message": "Password updated"}
+
+
 @router.delete("/users/{email}")
 async def delete_user(email: str, user: dict = Depends(require_role(["admin"]))):
     from urllib.parse import unquote

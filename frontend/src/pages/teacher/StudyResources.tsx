@@ -31,6 +31,14 @@ import {
 import { motion } from 'framer-motion'
 import { getStudyResources, uploadStudyResource, deleteStudyResource, downloadStudyResource, type StudyResource } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 const StudyResources: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -166,7 +174,7 @@ const StudyResources: React.FC = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -178,12 +186,23 @@ const StudyResources: React.FC = () => {
         </Alert>
       </Snackbar>
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          mb: 3,
+          pb: 3,
+          borderBottom: `1px solid ${THEME.primaryBorder}`,
+        }}
+      >
         <Box>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
             Study Resources
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: THEME.muted }}>
             Upload and manage learning materials for your students
           </Typography>
         </Box>
@@ -192,10 +211,13 @@ const StudyResources: React.FC = () => {
           startIcon={<CloudUpload />}
           onClick={() => setOpenDialog(true)}
           sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #5568d3 0%, #6941a0 100%)',
-            },
+            backgroundColor: THEME.primary,
+            borderRadius: 0,
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 2.5,
+            py: 1.25,
+            '&:hover': { backgroundColor: '#1e40af' },
           }}
         >
           Upload Resource
@@ -203,45 +225,37 @@ const StudyResources: React.FC = () => {
       </Box>
 
       {/* Stats */}
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(4, 1fr)' }} gap={2} mb={3}>
-        <Card sx={{ bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#0369a1">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, bgcolor: THEME.primaryLight }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.primary }}>
               {resources.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Resources
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Resources</Typography>
           </CardContent>
         </Card>
-        <Card sx={{ bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#991b1b">
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
               {resources.filter(r => r.type === 'PDF').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              PDF Documents
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>PDF Documents</Typography>
           </CardContent>
         </Card>
-        <Card sx={{ bgcolor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#6d28d9">
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
               {resources.filter(r => r.type === 'Video').length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Video Lectures
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Video Lectures</Typography>
           </CardContent>
         </Card>
-        <Card sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#15803d">
-              {resources.reduce((sum, r) => sum + r.downloads, 0)}
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+          <CardContent sx={{ py: 2, px: 2 }}>
+            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
+              {resources.reduce((sum, r) => sum + (r.downloads || 0), 0)}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Downloads
-            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Downloads</Typography>
           </CardContent>
         </Card>
       </Box>
@@ -249,12 +263,12 @@ const StudyResources: React.FC = () => {
       {/* Resources List */}
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
+          <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : resources.length === 0 ? (
-        <Card>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
           <CardContent>
-            <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+            <Typography variant="body1" sx={{ color: THEME.muted }} textAlign="center" py={4}>
               No study resources uploaded yet. Click "Upload Resource" to get started.
             </Typography>
           </CardContent>
@@ -268,16 +282,16 @@ const StudyResources: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card>
+              <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
                 <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
                     <Box display="flex" alignItems="center" gap={2} flexGrow={1}>
                       <Box
                         sx={{
                           width: 56,
                           height: 56,
-                          bgcolor: '#f9fafb',
-                          borderRadius: 2,
+                          bgcolor: THEME.primaryLight,
+                          borderRadius: 1,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -286,21 +300,21 @@ const StudyResources: React.FC = () => {
                         {getFileIcon(resource.type)}
                       </Box>
                       <Box flexGrow={1}>
-                        <Typography variant="h6" fontWeight="bold">
+                        <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                           {resource.title}
                         </Typography>
                         <Box display="flex" gap={2} mt={0.5} flexWrap="wrap">
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: THEME.muted }}>
                             📚 {resource.class_name}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: THEME.muted }}>
                             📦 {resource.size}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" sx={{ color: THEME.muted }}>
                             📅 {resource.uploadDate}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            ⬇️ {resource.downloads} downloads
+                          <Typography variant="caption" sx={{ color: THEME.muted }}>
+                            ⬇️ {resource.downloads ?? 0} downloads
                           </Typography>
                         </Box>
                       </Box>
@@ -315,10 +329,17 @@ const StudyResources: React.FC = () => {
                     </Box>
                     <Box display="flex" gap={1}>
                       <Button
-                        variant="outlined"
+                        variant="contained"
                         size="small"
                         startIcon={<Download />}
                         onClick={() => handleDownload(resource)}
+                        sx={{
+                          backgroundColor: THEME.primary,
+                          borderRadius: 0,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          '&:hover': { backgroundColor: '#1e40af' },
+                        }}
                       >
                         Download
                       </Button>
@@ -328,6 +349,7 @@ const StudyResources: React.FC = () => {
                         color="error"
                         startIcon={<Delete />}
                         onClick={() => handleDelete(resource.id)}
+                        sx={{ borderRadius: 0, textTransform: 'none' }}
                       >
                         Delete
                       </Button>
@@ -343,7 +365,7 @@ const StudyResources: React.FC = () => {
       {/* Upload Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          <Typography variant="h6" fontWeight="bold">
+          <Typography variant="h6" fontWeight="700" sx={{ color: THEME.textDark }}>
             Upload Study Resource
           </Typography>
         </DialogTitle>
@@ -408,8 +430,15 @@ const StudyResources: React.FC = () => {
             variant="contained"
             onClick={handleUpload}
             disabled={!selectedFile || uploading || !newResource.title || !newResource.class || !newResource.type}
+            sx={{
+              backgroundColor: THEME.primary,
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': { backgroundColor: '#1e40af' },
+            }}
           >
-            {uploading ? <CircularProgress size={20} /> : 'Upload'}
+            {uploading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Upload'}
           </Button>
         </DialogActions>
       </Dialog>

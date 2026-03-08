@@ -10,8 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
   Button,
   Dialog,
   DialogTitle,
@@ -20,22 +18,45 @@ import {
   TextField,
   MenuItem,
   CircularProgress,
+  Chip,
 } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
-import { getAssessments, createAssessment, getCourses, type Assessment, type AssessmentCreate, type AdminCourse } from '../../lib/api'
+import { Add as AddIcon, Assignment as AssignmentIcon } from '@mui/icons-material'
+import { motion } from 'framer-motion'
+import {
+  getTeacherMySubjects,
+  getSchemaAssignments,
+  createSchemaAssignment,
+  deleteSchemaAssignment,
+  type TeacherSubjectWithName,
+  type SchemaSubjectAssignment,
+} from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
+/**
+ * Teacher Assessments: assign assessments (assignments/quizzes/exams) to students by subject.
+ * Uses subject_assignments: teacher picks a subject they teach, creates an assignment;
+ * students enrolled in that subject (student_subjects) see it in their Assessments.
+ */
 const TeacherAssessments: React.FC = () => {
-  const [assessments, setAssessments] = useState<Assessment[]>([])
-  const [courses, setCourses] = useState<AdminCourse[]>([])
+  const [assignments, setAssignments] = useState<SchemaSubjectAssignment[]>([])
+  const [mySubjects, setMySubjects] = useState<TeacherSubjectWithName[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [openDialog, setOpenDialog] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    course_id: '',
-    assessment_type: 'ASSIGNMENT' as 'EXAM' | 'QUIZ' | 'ASSIGNMENT',
-    max_marks: '',
-    weightage: '',
+    subject_id: '',
     title: '',
     description: '',
+    max_marks: '100',
+    assignment_type: 'ASSIGNMENT' as string,
   })
 
   useEffect(() => {
@@ -43,108 +64,206 @@ const TeacherAssessments: React.FC = () => {
   }, [])
 
   const loadData = async () => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const [assessmentsData, coursesData] = await Promise.all([
-        getAssessments(),
-        getCourses(),
+      const [subjectsData, assignmentsData] = await Promise.all([
+        getTeacherMySubjects(),
+        getSchemaAssignments(),
       ])
-      setAssessments(assessmentsData)
-      setCourses(coursesData)
-    } catch (error) {
-      console.error('Error loading assessments or courses:', error)
+      setMySubjects(Array.isArray(subjectsData) ? subjectsData : [])
+      setAssignments(Array.isArray(assignmentsData) ? assignmentsData : [])
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load')
+      setAssignments([])
+      setMySubjects([])
     } finally {
       setLoading(false)
     }
   }
 
+  const handleCreate = async () => {
+    const subject_id = (formData.subject_id || '').trim()
+    const title = (formData.title || '').trim()
+    if (!subject_id) {
+      setError('Please select a subject')
+      return
+    }
+    if (!title) {
+      setError('Title is required')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await createSchemaAssignment({
+        subject_id,
+        title: title || 'Untitled',
+        description: formData.description || undefined,
+        max_marks: parseInt(formData.max_marks, 10) || 100,
+        assignment_type: formData.assignment_type || 'ASSIGNMENT',
+      })
+      setOpenDialog(false)
+      setFormData({ subject_id: '', title: '', description: '', max_marks: '100', assignment_type: 'ASSIGNMENT' })
+      await loadData()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to create assessment')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this assessment? Students will no longer see it.')) return
+    try {
+      await deleteSchemaAssignment(id)
+      await loadData()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to delete')
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="280px">
+        <CircularProgress sx={{ color: THEME.primary }} />
+      </Box>
+    )
+  }
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="bold">
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
           Assessments
         </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Create assignments, quizzes, or exams for a subject. Students enrolled in that subject will see them.
+        </Typography>
+      </Box>
+
+      {error && (
+        <Typography variant="body2" sx={{ color: '#991b1b', mb: 2 }} onFocus={() => setError(null)}>
+          {error}
+        </Typography>
+      )}
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setOpenDialog(true)}
-          sx={{ bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
+          disabled={mySubjects.length === 0}
+          sx={{
+            backgroundColor: THEME.primary,
+            borderRadius: 0,
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': { backgroundColor: '#1e40af' },
+          }}
         >
           Create Assessment
         </Button>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><strong>Title</strong></TableCell>
-                  <TableCell><strong>Course</strong></TableCell>
-                  <TableCell><strong>Type</strong></TableCell>
-                  <TableCell><strong>Max Marks</strong></TableCell>
-                  <TableCell><strong>Weightage</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <CircularProgress />
-                    </TableCell>
+      {mySubjects.length === 0 && (
+        <Typography variant="body2" sx={{ color: THEME.muted, mb: 2 }}>
+          You need at least one subject assigned (My Subjects) to create assessments.
+        </Typography>
+      )}
+
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, backgroundColor: '#fff' }}>
+        <CardContent sx={{ py: 2.5, px: 2.5 }}>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <AssignmentIcon sx={{ color: THEME.primary, fontSize: 22 }} />
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
+              Assignments by subject (visible to enrolled students)
+            </Typography>
+          </Box>
+          {assignments.length === 0 ? (
+            <Typography variant="body2" sx={{ color: THEME.muted }}>
+              No assessments yet. Create one to assign to students in a subject.
+            </Typography>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ borderBottom: `2px solid ${THEME.primaryBorder}` }}>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Title</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Subject</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Max Marks</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Action</TableCell>
                   </TableRow>
-                ) : assessments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <Typography color="textSecondary">No assessments found</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  assessments.map((assessment) => (
-                    <TableRow key={assessment.assessment_id}>
-                      <TableCell>{assessment.title || 'N/A'}</TableCell>
-                      <TableCell>{assessment.course_name || assessment.module_name || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Chip label={assessment.assessment_type} size="small" />
+                </TableHead>
+                <TableBody>
+                  {assignments.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      sx={{
+                        borderBottom: `1px solid ${THEME.primaryBorder}`,
+                        '&:hover': { backgroundColor: THEME.primaryLight },
+                      }}
+                    >
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Typography variant="body2" fontWeight="600" sx={{ color: THEME.textDark }}>
+                          {row.title || '—'}
+                        </Typography>
                       </TableCell>
-                      <TableCell>{assessment.max_marks}</TableCell>
-                      <TableCell>{assessment.weightage}%</TableCell>
-                      <TableCell>
-                        <Chip label="Active" color="success" size="small" />
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>
+                        {row.subject_name || row.subject_id}
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Chip
+                          label={row.assignment_type || 'ASSIGNMENT'}
+                          size="small"
+                          sx={{ borderRadius: 0, fontWeight: 500 }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{row.max_marks}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(row.id)}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Delete
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Assessment</DialogTitle>
+        <DialogTitle>Create assessment (assign to students in a subject)</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               select
-              label="Course"
-              value={formData.course_id}
-              onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
+              label="Subject"
+              value={formData.subject_id}
+              onChange={(e) => setFormData({ ...formData, subject_id: e.target.value })}
               fullWidth
+              required
             >
-              {courses.map((course) => (
-                <MenuItem key={course.id} value={course.id}>
-                  {course.name} ({course.code})
+              <MenuItem value="">Select subject</MenuItem>
+              {mySubjects.map((s) => (
+                <MenuItem key={s.id} value={s.subject_id}>
+                  {s.subject_name || s.subject_id}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
               select
-              label="Assessment Type"
-              value={formData.assessment_type}
-              onChange={(e) => setFormData({ ...formData, assessment_type: e.target.value as 'EXAM' | 'QUIZ' | 'ASSIGNMENT' })}
+              label="Type"
+              value={formData.assignment_type}
+              onChange={(e) => setFormData({ ...formData, assignment_type: e.target.value })}
               fullWidth
             >
               <MenuItem value="ASSIGNMENT">Assignment</MenuItem>
@@ -156,19 +275,13 @@ const TeacherAssessments: React.FC = () => {
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               fullWidth
+              required
             />
             <TextField
               label="Max Marks"
               type="number"
               value={formData.max_marks}
               onChange={(e) => setFormData({ ...formData, max_marks: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Weightage (%)"
-              type="number"
-              value={formData.weightage}
-              onChange={(e) => setFormData({ ...formData, weightage: e.target.value })}
               fullWidth
             />
             <TextField
@@ -183,43 +296,8 @@ const TeacherAssessments: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              if (!formData.course_id) {
-                alert('Course is required')
-                return
-              }
-              if (!formData.max_marks || !formData.weightage) {
-                alert('Max marks and weightage are required')
-                return
-              }
-              const payload: AssessmentCreate = {
-                course_id: formData.course_id,
-                assessment_type: formData.assessment_type,
-                max_marks: parseInt(formData.max_marks, 10),
-                weightage: parseFloat(formData.weightage),
-                title: formData.title || undefined,
-                description: formData.description || undefined,
-              }
-              try {
-                await createAssessment(payload)
-                setOpenDialog(false)
-                setFormData({
-                  course_id: '',
-                  assessment_type: 'ASSIGNMENT',
-                  max_marks: '',
-                  weightage: '',
-                  title: '',
-                  description: '',
-                })
-                await loadData()
-              } catch (error: any) {
-                alert(error.message || 'Failed to create assessment')
-              }
-            }}
-          >
-            Create
+          <Button variant="contained" onClick={handleCreate} disabled={submitting} sx={{ backgroundColor: THEME.primary }}>
+            {submitting ? <CircularProgress size={24} /> : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -228,4 +306,3 @@ const TeacherAssessments: React.FC = () => {
 }
 
 export default TeacherAssessments
-

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Card,
@@ -19,18 +19,37 @@ import {
   Save,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
-import { saveAdminProfile } from '../../lib/api'
+import { saveAdminProfile, getCurrentUser } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 const AdminProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState({
-    fullName: 'Admin Smith',
-    email: 'admin.smith@edu.com',
+    fullName: '',
+    email: '',
     phone: '+1 (555) 123-4567',
     adminId: 'ADM-2025-001',
-    role: 'Super Admin',
+    role: 'Admin',
     department: 'System Administration',
   })
+
+  useEffect(() => {
+    const user = getCurrentUser()
+    const displayRole = (user.role || 'admin').charAt(0).toUpperCase() + (user.role || 'admin').slice(1)
+    setProfileData((prev) => ({
+      ...prev,
+      fullName: user.name || prev.fullName,
+      email: user.email || prev.email,
+      role: displayRole,
+    }))
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setProfileData({ ...profileData, [field]: value })
@@ -46,18 +65,20 @@ const AdminProfile: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" mb={1}>
-        Admin Profile
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Manage your administrator account settings
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Admin Profile
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Manage your administrator account settings
+        </Typography>
+      </Box>
 
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }} gap={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 3 }}>
         {/* Profile Card */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <motion.div
                 initial={{ scale: 0 }}
@@ -68,26 +89,26 @@ const AdminProfile: React.FC = () => {
                   sx={{
                     width: 120,
                     height: 120,
-                    bgcolor: '#ef4444',
+                    bgcolor: THEME.primary,
                     fontSize: '3rem',
                     margin: '0 auto',
                     mb: 2,
                   }}
                 >
-                  👨‍💼
+                  {profileData.fullName ? profileData.fullName.charAt(0).toUpperCase() : '👨‍💼'}
                 </Avatar>
               </motion.div>
 
-              <Typography variant="h6" fontWeight="bold" mb={0.5}>
-                {profileData.fullName}
+              <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }} mb={0.5}>
+                {profileData.fullName || 'Admin'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
+              <Typography variant="body2" sx={{ color: THEME.muted }} mb={1}>
                 {profileData.adminId}
               </Typography>
               <Chip
                 icon={<AdminPanelSettings />}
                 label={profileData.role}
-                sx={{ bgcolor: '#fee2e2', color: '#991b1b', mb: 2 }}
+                sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, mb: 2, borderRadius: 0 }}
               />
 
               <Divider sx={{ my: 2 }} />
@@ -113,10 +134,10 @@ const AdminProfile: React.FC = () => {
 
         {/* Edit Form */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h6" fontWeight="bold">
+                <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                   Personal Information
                 </Typography>
                 {!isEditing ? (
@@ -124,15 +145,34 @@ const AdminProfile: React.FC = () => {
                     variant="contained"
                     startIcon={<Edit />}
                     onClick={() => setIsEditing(true)}
+                    sx={{
+                      backgroundColor: THEME.primary,
+                      borderRadius: 0,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:hover': { backgroundColor: '#1e40af' },
+                    }}
                   >
                     Edit Profile
                   </Button>
                 ) : (
                   <Box display="flex" gap={1}>
-                    <Button variant="outlined" onClick={() => setIsEditing(false)}>
+                    <Button variant="outlined" onClick={() => setIsEditing(false)} sx={{ borderRadius: 0, textTransform: 'none' }}>
                       Cancel
                     </Button>
-                    <Button variant="contained" startIcon={<Save />} onClick={handleSave} disabled={saving}>
+                    <Button
+                      variant="contained"
+                      startIcon={<Save />}
+                      onClick={handleSave}
+                      disabled={saving}
+                      sx={{
+                        backgroundColor: THEME.primary,
+                        borderRadius: 0,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        '&:hover': { backgroundColor: '#1e40af' },
+                      }}
+                    >
                       {saving ? 'Saving...' : 'Save Changes'}
                     </Button>
                   </Box>

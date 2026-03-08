@@ -25,6 +25,14 @@ import {
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { getAssessments, createAssessment, updateAssessment, deleteAssessment, getCourses, type Assessment, type AssessmentCreate, type AdminCourse } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 const AssessmentManagement: React.FC = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [courses, setCourses] = useState<AdminCourse[]>([])
@@ -143,53 +151,58 @@ const AssessmentManagement: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="bold">
-          Assessment Management
-        </Typography>
+        <Box>
+          <Typography variant="h4" fontWeight="bold" sx={{ color: THEME.textDark }}>
+            Assessment Management
+          </Typography>
+          <Typography variant="body2" sx={{ color: THEME.muted }}>
+            Create and manage exams, quizzes, and assignments
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
-          sx={{ bgcolor: '#3b82f6', '&:hover': { bgcolor: '#2563eb' } }}
+          sx={{ bgcolor: THEME.primary, '&:hover': { bgcolor: '#16324d' } }}
         >
           Add Assessment
         </Button>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
+      <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none', border: 'none' }}>
             <Table>
               <TableHead>
-                <TableRow>
-                  <TableCell><strong>Title</strong></TableCell>
-                  <TableCell><strong>Course</strong></TableCell>
-                  <TableCell><strong>Type</strong></TableCell>
-                  <TableCell><strong>Max Marks</strong></TableCell>
-                  <TableCell><strong>Weightage (%)</strong></TableCell>
-                  <TableCell><strong>Actions</strong></TableCell>
+                <TableRow sx={{ bgcolor: THEME.primaryLight }}>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Title</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Course</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Max Marks</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Weightage (%)</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {assessments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <Typography color="textSecondary">No assessments found</Typography>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4, color: THEME.muted }}>
+                      No assessments found
                     </TableCell>
                   </TableRow>
                 ) : (
                   assessments.map((assessment) => (
-                    <TableRow key={assessment.assessment_id}>
-                      <TableCell>{assessment.title || 'N/A'}</TableCell>
-                      <TableCell>{assessment.course_name || assessment.module_name || 'N/A'}</TableCell>
-                      <TableCell>{assessment.assessment_type}</TableCell>
-                      <TableCell>{assessment.max_marks}</TableCell>
-                      <TableCell>{assessment.weightage}%</TableCell>
+                    <TableRow key={assessment.assessment_id} sx={{ '&:hover': { bgcolor: THEME.primaryLight } }}>
+                      <TableCell sx={{ color: THEME.textDark }}>{assessment.title || 'N/A'}</TableCell>
+                      <TableCell sx={{ color: THEME.muted }}>{assessment.course_name || assessment.module_name || 'N/A'}</TableCell>
+                      <TableCell sx={{ color: THEME.textDark }}>{assessment.assessment_type}</TableCell>
+                      <TableCell sx={{ color: THEME.textDark }}>{assessment.max_marks}</TableCell>
+                      <TableCell sx={{ color: THEME.textDark }}>{assessment.weightage}%</TableCell>
                       <TableCell>
-                        <IconButton size="small" onClick={() => handleOpenDialog(assessment)}>
+                        <IconButton size="small" onClick={() => handleOpenDialog(assessment)} sx={{ color: THEME.primary }}>
                           <EditIcon />
                         </IconButton>
-                        <IconButton size="small" onClick={() => handleDelete(assessment.assessment_id)}>
+                        <IconButton size="small" onClick={() => handleDelete(assessment.assessment_id)} color="error">
                           <DeleteIcon />
                         </IconButton>
                       </TableCell>
@@ -202,8 +215,8 @@ const AssessmentManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editingAssessment ? 'Edit Assessment' : 'Add New Assessment'}</DialogTitle>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
+        <DialogTitle sx={{ color: THEME.textDark, borderBottom: `1px solid ${THEME.primaryBorder}`, pb: 2 }}>{editingAssessment ? 'Edit Assessment' : 'Add New Assessment'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
@@ -260,20 +273,21 @@ const AssessmentManagement: React.FC = () => {
             />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, pt: 2 }}>
+          <Button onClick={handleCloseDialog} sx={{ color: THEME.muted }}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained" sx={{ bgcolor: THEME.primary, '&:hover': { bgcolor: '#16324d' } }}>
             {editingAssessment ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
-          </Dialog>
-      
+      </Dialog>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>{snackbar.message}</Alert>
       </Snackbar>
     </Box>
   )
