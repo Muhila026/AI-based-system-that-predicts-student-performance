@@ -17,8 +17,8 @@ import {
   InputLabel,
   CircularProgress,
   Alert,
-  Snackbar,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import {
   CloudUpload,
   Description,
@@ -175,16 +175,13 @@ const StudyResources: React.FC = () => {
 
   return (
     <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
 
       <Box
         sx={{

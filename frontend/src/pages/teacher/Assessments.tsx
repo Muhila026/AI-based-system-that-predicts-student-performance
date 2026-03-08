@@ -20,15 +20,19 @@ import {
   CircularProgress,
   Chip,
 } from '@mui/material'
-import { Add as AddIcon, Assignment as AssignmentIcon } from '@mui/icons-material'
-import { motion } from 'framer-motion'
+import CenteredMessage from '../../components/CenteredMessage'
+import { Add as AddIcon, Assignment as AssignmentIcon, List as ListIcon, GetApp as GetAppIcon } from '@mui/icons-material'
 import {
   getTeacherMySubjects,
   getSchemaAssignments,
   createSchemaAssignment,
   deleteSchemaAssignment,
+  getAssignmentSubmissions,
+  gradeSubmission,
+  getSubmissionPdfBlob,
   type TeacherSubjectWithName,
   type SchemaSubjectAssignment,
+  type AssignmentSubmissionItem,
 } from '../../lib/api'
 
 const THEME = {
@@ -58,6 +62,12 @@ const TeacherAssessments: React.FC = () => {
     max_marks: '100',
     assignment_type: 'ASSIGNMENT' as string,
   })
+  const [submissionsDialog, setSubmissionsDialog] = useState<{ open: boolean; assignmentId: string; title: string }>({ open: false, assignmentId: '', title: '' })
+  const [submissions, setSubmissions] = useState<AssignmentSubmissionItem[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [marksEdit, setMarksEdit] = useState<Record<string, string>>({})
+  const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' })
 
   useEffect(() => {
     loadData()
@@ -120,6 +130,57 @@ const TeacherAssessments: React.FC = () => {
       await loadData()
     } catch (e: any) {
       setError(e?.message || 'Failed to delete')
+    }
+  }
+
+  const openSubmissions = async (assignmentId: string, title: string) => {
+    setSubmissionsDialog({ open: true, assignmentId, title })
+    setSubmissionsLoading(true)
+    setMarksEdit({})
+    try {
+      const list = await getAssignmentSubmissions(assignmentId)
+      setSubmissions(list)
+      const initial: Record<string, string> = {}
+      list.forEach((s) => { initial[s.id] = s.marks != null ? String(s.marks) : '' })
+      setMarksEdit(initial)
+    } catch {
+      setSubmissions([])
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }
+
+  const handleSaveMarks = async (submissionId: string) => {
+    const val = marksEdit[submissionId]
+    const num = val === '' ? NaN : parseFloat(val)
+    if (isNaN(num) || num < 0) {
+      setSnackbar({ open: true, message: 'Enter a valid marks (number ≥ 0)', severity: 'error' })
+      return
+    }
+    setSavingSubmissionId(submissionId)
+    try {
+      await gradeSubmission(submissionId, num)
+      setSnackbar({ open: true, message: 'Marks saved', severity: 'success' })
+      const list = await getAssignmentSubmissions(submissionsDialog.assignmentId)
+      setSubmissions(list)
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.message || 'Failed to save', severity: 'error' })
+    } finally {
+      setSavingSubmissionId(null)
+    }
+  }
+
+  const handleDownloadSubmission = async (submissionId: string) => {
+    try {
+      const blob = await getSubmissionPdfBlob(submissionId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `submission_${submissionId}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to download PDF', severity: 'error' })
     }
   }
 
@@ -193,7 +254,7 @@ const TeacherAssessments: React.FC = () => {
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Subject</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Type</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Max Marks</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Action</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -224,6 +285,15 @@ const TeacherAssessments: React.FC = () => {
                       <TableCell sx={{ py: 1.5 }}>
                         <Button
                           size="small"
+                          variant="outlined"
+                          startIcon={<ListIcon />}
+                          onClick={() => openSubmissions(row.id, row.title || '—')}
+                          sx={{ textTransform: 'none', mr: 1 }}
+                        >
+                          Submissions
+                        </Button>
+                        <Button
+                          size="small"
                           color="error"
                           onClick={() => handleDelete(row.id)}
                           sx={{ textTransform: 'none', fontWeight: 600 }}
@@ -239,6 +309,70 @@ const TeacherAssessments: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={submissionsDialog.open} onClose={() => setSubmissionsDialog((p) => ({ ...p, open: false }))} maxWidth="md" fullWidth>
+        <DialogTitle>Submissions: {submissionsDialog.title}</DialogTitle>
+        <DialogContent>
+          {submissionsLoading ? (
+            <Box display="flex" justifyContent="center" py={3}><CircularProgress sx={{ color: THEME.primary }} /></Box>
+          ) : submissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">No submissions yet. Students upload PDF from their Assessments page.</Typography>
+          ) : (
+            <TableContainer sx={{ mt: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Student</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Submitted</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Marks</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {submissions.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>{s.student_name || s.userEmail}</TableCell>
+                      <TableCell sx={{ color: THEME.muted }}>
+                        {s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={marksEdit[s.id] ?? ''}
+                          onChange={(e) => setMarksEdit((p) => ({ ...p, [s.id]: e.target.value }))}
+                          placeholder="Marks"
+                          sx={{ width: 80 }}
+                          inputProps={{ min: 0, max: s.max_marks }}
+                        />
+                        <span style={{ marginLeft: 8 }}>/ {s.max_marks}</span>
+                        <Button
+                          size="small"
+                          sx={{ ml: 1 }}
+                          disabled={savingSubmissionId === s.id}
+                          onClick={() => handleSaveMarks(s.id)}
+                        >
+                          {savingSubmissionId === s.id ? <CircularProgress size={18} /> : 'Save'}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        {s.has_pdf && (
+                          <Button size="small" startIcon={<GetAppIcon />} onClick={() => handleDownloadSubmission(s.id)}>
+                            Download PDF
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubmissionsDialog((p) => ({ ...p, open: false }))}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create assessment (assign to students in a subject)</DialogTitle>
@@ -301,6 +435,14 @@ const TeacherAssessments: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <CenteredMessage
+        open={snackbar.open}
+        message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+        autoHideDuration={5000}
+      />
     </Box>
   )
 }

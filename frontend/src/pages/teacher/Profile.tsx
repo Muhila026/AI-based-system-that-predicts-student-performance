@@ -22,6 +22,14 @@ import {
 import { motion } from 'framer-motion'
 import { getTeacherProfile, saveTeacherProfile, type TeacherProfile } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 const TeacherProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -93,13 +101,15 @@ const TeacherProfile: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" mb={1}>
-        Profile & Settings
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Manage your account information
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Profile & Settings
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Manage your account information
+        </Typography>
+      </Box>
 
       {error && (
         <Typography variant="body2" color="error" mb={2}>
@@ -109,13 +119,13 @@ const TeacherProfile: React.FC = () => {
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
+          <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : (
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }} gap={3}>
         {/* Profile Card */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <motion.div
                 initial={{ scale: 0 }}
@@ -126,7 +136,7 @@ const TeacherProfile: React.FC = () => {
                   sx={{
                     width: 120,
                     height: 120,
-                    bgcolor: '#6366f1',
+                    bgcolor: THEME.primary,
                     fontSize: '3rem',
                     margin: '0 auto',
                     mb: 2,
@@ -136,31 +146,28 @@ const TeacherProfile: React.FC = () => {
                 </Avatar>
               </motion.div>
 
-              <Typography variant="h6" fontWeight="bold" mb={0.5}>
+              <Typography variant="h6" fontWeight="bold" mb={0.5} sx={{ color: THEME.textDark }}>
                 {profileData.fullName}
               </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
+              <Typography variant="body2" sx={{ color: THEME.muted }} mb={1}>
                 {profileData.teacherId}
               </Typography>
-              <Chip
-                label={profileData.department}
-                sx={{ bgcolor: '#e0e7ff', color: '#3730a3', mb: 2 }}
-              />
+              <Chip label={profileData.department} sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, mb: 2, borderRadius: 0 }} />
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 2, borderColor: THEME.primaryBorder }} />
 
               <Box textAlign="left">
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Email fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.email}</Typography>
+                  <Email fontSize="small" sx={{ color: THEME.muted }} />
+                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.email}</Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.phone}</Typography>
+                  <Phone fontSize="small" sx={{ color: THEME.muted }} />
+                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.phone}</Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>
-                  <School fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.experience} experience</Typography>
+                  <School fontSize="small" sx={{ color: THEME.muted }} />
+                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.experience} experience</Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -170,36 +177,22 @@ const TeacherProfile: React.FC = () => {
 
         {/* Edit Form */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h6" fontWeight="bold">
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} sx={{ pb: 2, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: THEME.textDark }}>
                   Personal Information
                 </Typography>
                 {!isEditing ? (
-                  <Button
-                    variant="contained"
-                    startIcon={<Edit />}
-                    onClick={() => setIsEditing(true)}
-                    disabled={saving}
-                  >
+                  <Button variant="contained" startIcon={<Edit />} onClick={() => setIsEditing(true)} disabled={saving} sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}>
                     Edit Profile
                   </Button>
                 ) : (
                   <Box display="flex" gap={1}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => setIsEditing(false)}
-                      disabled={saving}
-                    >
+                    <Button variant="outlined" onClick={() => setIsEditing(false)} disabled={saving} sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, color: THEME.primary }}>
                       Cancel
                     </Button>
-                    <Button
-                      variant="contained"
-                      startIcon={<Save />}
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
+                    <Button variant="contained" startIcon={<Save />} onClick={handleSave} disabled={saving} sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}>
                       Save Changes
                     </Button>
                   </Box>
@@ -265,7 +258,7 @@ const TeacherProfile: React.FC = () => {
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
                   {profileData.subjects.map((subject, index) => (
-                    <Chip key={index} label={subject} sx={{ bgcolor: '#f3f4f6' }} />
+                    <Chip key={index} label={subject} sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, borderRadius: 0 }} />
                   ))}
                 </Box>
               </Box>

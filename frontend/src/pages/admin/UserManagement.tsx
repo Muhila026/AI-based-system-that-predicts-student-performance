@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
+  Alert,
   Box,
   Card,
   CardContent,
@@ -24,10 +25,8 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Avatar,
-  Snackbar,
-  Alert,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { Add, Edit, Delete, Search, Block, LockReset, Visibility, VisibilityOff, Security } from '@mui/icons-material'
 import {
   addUser,
@@ -118,6 +117,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
   })
   const [showAddUserPassword, setShowAddUserPassword] = useState(false)
   const [addUserLoading, setAddUserLoading] = useState(false)
+  const [addUserError, setAddUserError] = useState<string | null>(null)
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -177,6 +177,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       setSnackbar({ open: true, message: 'Password must be at least 6 characters long', severity: 'error' })
       return
     }
+    setAddUserError(null)
     setAddUserLoading(true)
     try {
       await addUser({
@@ -188,10 +189,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       })
       setOpenDialog(false)
       setNewUser({ name: '', email: '', role: '', password: '' })
+      setAddUserError(null)
       setUsers(await getUsers())
       setSnackbar({ open: true, message: 'User added successfully', severity: 'success' })
     } catch (error: any) {
-      const errorMessage = error.message || error.detail || 'Failed to create user'
+      const errorMessage = error?.message || error?.detail || 'Failed to create user'
+      setAddUserError(errorMessage)
       setSnackbar({ open: true, message: errorMessage, severity: 'error' })
     } finally {
       setAddUserLoading(false)
@@ -647,7 +650,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
       {/* Add User Dialog */}
       <Dialog
         open={openDialog}
-        onClose={() => !addUserLoading && setOpenDialog(false)}
+        onClose={() => {
+          if (!addUserLoading) {
+            setOpenDialog(false)
+            setAddUserError(null)
+          }
+        }}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -672,6 +680,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
           Add New User
         </DialogTitle>
         <DialogContent sx={{ px: 3, pt: 3, pb: 2 }}>
+          {addUserError && (
+            <Alert
+              severity="error"
+              onClose={() => setAddUserError(null)}
+              sx={{ mb: 2, borderRadius: 0 }}
+            >
+              {addUserError}
+            </Alert>
+          )}
           <Box display="grid" gap={2.5}>
             <TextField
               fullWidth
@@ -700,8 +717,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
               type="email"
               placeholder="john@example.com"
               value={newUser.email}
-              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              onChange={(e) => {
+                setNewUser({ ...newUser, email: e.target.value })
+                if (addUserError) setAddUserError(null)
+              }}
               disabled={addUserLoading}
+              error={!!addUserError}
+              helperText={addUserError && addUserError.toLowerCase().includes('email') ? addUserError : undefined}
               variant="outlined"
               margin="normal"
               InputLabelProps={{ shrink: true, sx: { color: THEME.textDark } }}
@@ -1203,16 +1225,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialOpenAddDialog, o
         </DialogActions>
       </Dialog>
 
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
     </Box>
   )
 }

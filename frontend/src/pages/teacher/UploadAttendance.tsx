@@ -12,10 +12,18 @@ import {
   ListItem,
   CircularProgress,
   Alert,
-  Snackbar,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { EventAvailable, Save } from '@mui/icons-material'
 import { getAttendanceStudentList, uploadDailyAttendance, type StudentListItem } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 const UploadAttendance: React.FC = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -57,15 +65,17 @@ const UploadAttendance: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-        Upload attendance
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Mark students present for the day. attendance_percentage is auto-generated from present_days / total_days.
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Upload attendance
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Mark students present for the day. attendance_percentage is auto-generated from present_days / total_days.
+        </Typography>
+      </Box>
 
-      <Card sx={{ mb: 3 }}>
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, mb: 3, backgroundColor: '#fff' }}>
         <CardContent>
           <TextField
             label="Date"
@@ -73,11 +83,13 @@ const UploadAttendance: React.FC = () => {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
+            size="small"
             sx={{ mr: 2, minWidth: 180 }}
           />
           <Button
             variant="contained"
-            startIcon={submitting ? <CircularProgress size={20} /> : <Save />}
+            sx={{ borderRadius: 0, backgroundColor: THEME.primary, '&:hover': { backgroundColor: '#1e40af' } }}
+            startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Save />}
             onClick={handleSubmit}
             disabled={submitting || students.length === 0}
             sx={{ mt: 1 }}
@@ -87,14 +99,15 @@ const UploadAttendance: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, backgroundColor: '#fff' }}>
         <CardContent>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-            Students — tick present
-          </Typography>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <EventAvailable sx={{ color: THEME.primary, fontSize: 22 }} />
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>Students — tick present</Typography>
+          </Box>
           {loading ? (
             <Box display="flex" justifyContent="center" py={4}>
-              <CircularProgress />
+              <CircularProgress sx={{ color: THEME.primary }} />
             </Box>
           ) : students.length === 0 ? (
             <Alert severity="info">No students in the system. Add students first.</Alert>
@@ -118,11 +131,12 @@ const UploadAttendance: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
         message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+        autoHideDuration={6000}
       />
     </Box>
   )

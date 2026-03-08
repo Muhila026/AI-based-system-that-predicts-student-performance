@@ -20,12 +20,19 @@ import {
   DialogActions,
   Avatar,
   CircularProgress,
-  Alert,
-  Snackbar,
   Button,
 } from '@mui/material'
-import { Search, Visibility, Email, Phone, Home, School, Person } from '@mui/icons-material'
+import CenteredMessage from '../../components/CenteredMessage'
+import { Search, Visibility, Email, Phone, School, Person, Home } from '@mui/icons-material'
 import { getStudents, getStudentDetails, AdminUser, StudentDetail } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 const ManageStudents: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -89,137 +96,77 @@ const ManageStudents: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Snackbar
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            Manage Students
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            View and manage student information
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Manage Students
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Search by name or email.
+        </Typography>
       </Box>
 
-      {/* Stats */}
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: 'repeat(3, 1fr)' }} gap={2} mb={3}>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#10b981">
-              {students.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Total Students
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#15803d">
-              {students.filter((s) => s.status === 'Active').length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Active Students
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <Typography variant="h5" fontWeight="bold" color="#6b7280">
-              {students.filter((s) => s.status === 'Inactive').length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Inactive Students
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* Search Bar */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, backgroundColor: '#fff' }}>
+        <CardContent sx={{ py: 2.5, px: 2.5 }}>
           <TextField
             fullWidth
             placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
+            sx={{ mb: 2 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search />
+                  <Search sx={{ color: THEME.muted }} />
                 </InputAdornment>
               ),
             }}
           />
-        </CardContent>
-      </Card>
-
-      {/* Students Table */}
-      <Card>
-        <CardContent>
           {loading ? (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-              <CircularProgress />
+              <CircularProgress sx={{ color: THEME.primary }} />
             </Box>
           ) : filteredStudents.length === 0 ? (
-            <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
+            <Typography variant="body2" sx={{ color: THEME.muted }} textAlign="center" py={4}>
               No students found
             </Typography>
           ) : (
             <TableContainer>
-              <Table>
+              <Table size="small">
                 <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Student</strong></TableCell>
-                    <TableCell><strong>Email</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Joined Date</strong></TableCell>
-                    <TableCell><strong>Actions</strong></TableCell>
+                  <TableRow sx={{ borderBottom: `2px solid ${THEME.primaryBorder}` }}>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Student</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Email</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Joined</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredStudents.map((student) => (
-                    <TableRow key={student.id} sx={{ '&:hover': { bgcolor: '#f9fafb' } }}>
-                      <TableCell>
+                    <TableRow key={student.id} sx={{ borderBottom: `1px solid ${THEME.primaryBorder}`, '&:hover': { backgroundColor: THEME.primaryLight } }}>
+                      <TableCell sx={{ py: 1.5 }}>
                         <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: '#10b981', width: 32, height: 32 }}>
-                            {student.name.charAt(0)}
-                          </Avatar>
-                          <Typography variant="body2" fontWeight={600}>
-                            {student.name}
-                          </Typography>
+                          <Avatar sx={{ bgcolor: THEME.primary, width: 32, height: 32 }}>{student.name.charAt(0)}</Avatar>
+                          <Typography variant="body2" fontWeight={600} sx={{ color: THEME.textDark }}>{student.name}</Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.email}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={student.status}
-                          size="small"
-                          sx={{
-                            bgcolor: student.status === 'Active' ? '#dcfce7' : '#f3f4f6',
-                            color: student.status === 'Active' ? '#15803d' : '#6b7280',
-                          }}
-                        />
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{student.email}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Chip label={student.status} size="small" sx={{ borderRadius: 0, bgcolor: student.status === 'Active' ? '#dcfce7' : '#f3f4f6', color: student.status === 'Active' ? '#15803d' : THEME.muted }} />
                       </TableCell>
-                      <TableCell>{student.joinedDate}</TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          color="info"
-                          onClick={() => handleViewDetails(student.email)}
-                          title="View Details"
-                        >
+                      <TableCell sx={{ color: THEME.muted, py: 1.5 }}>{student.joinedDate}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <IconButton size="small" onClick={() => handleViewDetails(student.email)} title="View Details" sx={{ color: THEME.primary }}>
                           <Visibility fontSize="small" />
                         </IconButton>
                       </TableCell>
@@ -236,7 +183,7 @@ const ManageStudents: React.FC = () => {
       <Dialog open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={2}>
-            <Avatar sx={{ bgcolor: '#10b981', width: 48, height: 48 }}>
+            <Avatar sx={{ bgcolor: THEME.primary, width: 48, height: 48 }}>
               {selectedStudentEmail && selectedStudentEmail.charAt(0).toUpperCase()}
             </Avatar>
             <Box>
@@ -337,8 +284,8 @@ const ManageStudents: React.FC = () => {
             </Typography>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}` }}>
+          <Button onClick={() => setDetailsDialogOpen(false)} sx={{ color: THEME.muted }}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

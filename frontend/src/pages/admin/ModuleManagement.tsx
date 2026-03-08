@@ -19,9 +19,8 @@ import {
   TextField,
   MenuItem,
   IconButton,
-  Snackbar,
-  Alert,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { getModules, createModule, updateModule, deleteModule, getCourses, type Module, type ModuleCreate } from '../../lib/api'
 
@@ -263,13 +262,13 @@ const ModuleManagement: React.FC = () => {
         </DialogActions>
           </Dialog>
       
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
     </Box>
   )
 }

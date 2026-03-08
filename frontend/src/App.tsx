@@ -23,7 +23,6 @@ import StudentPerformance from './pages/teacher/StudentPerformance'
 import TeacherModules from './pages/teacher/Modules'
 import TeacherAssessments from './pages/teacher/Assessments'
 import StudentResults from './pages/teacher/StudentResults'
-import TeacherAssignments from './pages/teacher/Assignments'
 import TeacherChat from './pages/teacher/Chat'
 import UploadAttendance from './pages/teacher/UploadAttendance'
 import ParticipationRating from './pages/teacher/ParticipationRating'
@@ -186,8 +185,6 @@ const App: React.FC = () => {
         return <TeacherAssessments />
       case 'Student Results':
         return <StudentResults />
-      case 'Assignments':
-        return <TeacherAssignments />
       case 'Attendance':
         return <UploadAttendance />
       case 'Participation':
@@ -210,7 +207,12 @@ const App: React.FC = () => {
   const renderAdminPage = () => {
     switch (selectedPage) {
       case 'Dashboard':
-        return <AdminDashboard onAddUserClick={handleOpenAddUser} />
+        return (
+          <AdminDashboard
+            onAddUserClick={handleOpenAddUser}
+            onSelectPage={handlePageSelect}
+          />
+        )
       case 'User Management':
         return (
           <UserManagement

@@ -2,6 +2,7 @@
 ML pipeline: aggregate features from assignments, attendance, participation, study logs → predicted grade.
 NO manual form; all inputs from system data.
 """
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timedelta
 
@@ -11,6 +12,25 @@ from app.routes.prediction import predict_grade_from_features
 from app.routes.attendance_ml import _student_id_from_email
 
 router = APIRouter(prefix="/api/v1/pipeline", tags=["ML Pipeline"])
+
+_GRADE_SCORE = {"A": 92.0, "B": 82.0, "C": 72.0, "D": 62.0, "F": 45.0}
+
+
+def _fallback_grade_from_features(total_score: float, attendance_percentage: float, class_participation: float) -> tuple:
+    """When ML model is not available, derive grade from total_score (and optionally attendance/participation). Returns (grade, confidence, predicted_score)."""
+    s = float(total_score)
+    if s >= 90:
+        grade = "A"
+    elif s >= 80:
+        grade = "B"
+    elif s >= 70:
+        grade = "C"
+    elif s >= 60:
+        grade = "D"
+    else:
+        grade = "F"
+    predicted_score = _GRADE_SCORE.get(grade, 50.0)
+    return grade, None, predicted_score
 
 
 async def _aggregate_ml_features(email: str) -> dict:
@@ -66,7 +86,7 @@ async def _aggregate_ml_features(email: str) -> dict:
     except Exception:
         pass
 
-    # 4) Total score: from assignment_submissions
+    # 4) Total score: from assignment_submissions first; fallback to student_subject_marks (by student_id = email)
     try:
         cursor = db.assignment_submissions.find({"userEmail": email})
         total_marks = 0.0
@@ -78,6 +98,23 @@ async def _aggregate_ml_features(email: str) -> dict:
             total_score = round((total_marks / total_max) * 100.0, 2)
     except Exception:
         pass
+
+    if total_score == 0.0:
+        try:
+            email_regex = {"$regex": f"^{re.escape(email.strip())}$", "$options": "i"}
+            cursor = db.student_subject_marks.find({"student_id": email_regex})
+            scores = []
+            async for doc in cursor:
+                a = float(doc.get("assignment", 0))
+                q = float(doc.get("quiz", 0))
+                m = float(doc.get("mid_exam", 0))
+                # Row score = average of assignment, quiz, mid_exam (each 0–100)
+                row_score = (a + q + m) / 3.0
+                scores.append(min(100.0, max(0.0, row_score)))
+            if scores:
+                total_score = round(sum(scores) / len(scores), 2)
+        except Exception:
+            pass
 
     return {
         "weekly_self_study_hours": weekly_self_study_hours,
@@ -114,6 +151,15 @@ async def get_my_predicted_grade(user: dict = Depends(get_current_user)):
             features["class_participation"],
             features["total_score"],
         )
+    except RuntimeError as e:
+        if "not found" in str(e).lower() or "assets" in str(e).lower():
+            grade, confidence, predicted_score = _fallback_grade_from_features(
+                features["total_score"],
+                features["attendance_percentage"],
+                features["class_participation"],
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"ML prediction failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ML prediction failed: {e}")
     student_id = _student_id_from_email(email)

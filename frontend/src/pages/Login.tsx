@@ -8,8 +8,8 @@ import {
   IconButton,
   Alert,
   CircularProgress,
-  Snackbar,
 } from '@mui/material'
+import CenteredMessage from '../components/CenteredMessage'
 import {
   PersonOutline,
   LockOutlined,
@@ -146,21 +146,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword }) => {
           </Alert>
         )}
 
-        <Snackbar
+        <CenteredMessage
           open={loginSuccessOpen}
-          autoHideDuration={2000}
+          message="Login successful! Redirecting..."
+          severity="success"
           onClose={handleSuccessClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert
-            severity="success"
-            icon={<CheckCircle />}
-            onClose={() => handleSuccessClose()}
-            sx={{ width: '100%' }}
-          >
-            Login successful! Redirecting...
-          </Alert>
-        </Snackbar>
+          autoHideDuration={2000}
+        />
 
         <form onSubmit={handleLogin}>
           <Box sx={{ mb: 4 }}>

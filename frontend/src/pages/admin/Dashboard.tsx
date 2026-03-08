@@ -13,6 +13,12 @@ import {
   PersonAdd,
   TrendingUp,
   Assignment,
+  Person as PersonIcon,
+  Subject as SubjectIcon,
+  FolderOpen as FolderOpenIcon,
+  Chat as ChatIcon,
+  SmartToy as SmartToyIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import { getAdminDashboard } from '../../lib/api'
@@ -27,9 +33,19 @@ const THEME = {
 
 interface AdminDashboardProps {
   onAddUserClick?: () => void
+  onSelectPage?: (page: string) => void
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onAddUserClick }) => {
+const shortcutItems = [
+  { label: 'User Management', page: 'User Management', icon: <PersonIcon />, color: '#1e3a8a' },
+  { label: 'Subjects & Marks', page: 'Subjects & Marks', icon: <SubjectIcon />, color: '#0d9488' },
+  { label: 'Study Resources', page: 'Study Resources', icon: <FolderOpenIcon />, color: '#b45309' },
+  { label: 'Chat', page: 'Chat', icon: <ChatIcon />, color: '#7c3aed' },
+  { label: 'Chatbot Support', page: 'Chatbot Support', icon: <SmartToyIcon />, color: '#059669' },
+  { label: 'Profile', page: 'Profile', icon: <SettingsIcon />, color: '#6b7280' },
+]
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onAddUserClick, onSelectPage }) => {
   const [stats, setStats] = useState<Array<{ title: string; value: string; change: string }>>([])
   const [userBreakdown, setUserBreakdown] = useState<Array<{ type: string; count: number; percentage: number }>>([])
   const [recentActivities, setRecentActivities] = useState<Array<{ activity: string; user: string; time: string }>>([])
@@ -60,7 +76,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onAddUserClick }) => {
   const displayStats = stats.length ? stats : localStats
 
   return (
-    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+    <Box sx={{ fontFamily: "'Roboto', sans-serif" }}>
       {/* Header */}
       <Box
         sx={{
@@ -108,6 +124,68 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onAddUserClick }) => {
               Add User
             </Button>
           </motion.div>
+        </Box>
+      )}
+
+      {/* Shortcuts */}
+      {onSelectPage && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="subtitle2" fontWeight="600" sx={{ color: THEME.muted, mb: 1.5 }}>
+            Shortcuts
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(6, 1fr)' },
+              gap: 1.5,
+            }}
+          >
+            {shortcutItems.map((item, index) => (
+              <motion.div
+                key={item.page}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.06 + index * 0.04 }}
+              >
+                <Card
+                  elevation={0}
+                  onClick={() => onSelectPage(item.page)}
+                  sx={{
+                    border: `1px solid ${THEME.primaryBorder}`,
+                    borderRadius: 0,
+                    backgroundColor: '#fff',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      borderColor: item.color,
+                      boxShadow: `0 2px 8px ${item.color}20`,
+                    },
+                  }}
+                >
+                  <CardContent sx={{ py: 1.5, px: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 0,
+                        backgroundColor: THEME.primaryLight,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: item.color,
+                        mb: 1,
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                    <Typography variant="caption" fontWeight="600" sx={{ color: THEME.textDark }}>
+                      {item.label}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </Box>
         </Box>
       )}
 

@@ -14,10 +14,12 @@ import {
   Chip,
   CircularProgress,
 } from '@mui/material'
-import { getModules, type Module } from '../../lib/api'
+import { getCurrentUser, getSchemaStudentSubjects, getSchemaSubjects } from '../../lib/api'
+
+export type StudentSubjectRow = { _id: string; subject_id: string; subject_name: string }
 
 const StudentModules: React.FC = () => {
-  const [modules, setModules] = useState<Module[]>([])
+  const [rows, setRows] = useState<StudentSubjectRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,11 +29,26 @@ const StudentModules: React.FC = () => {
   const loadModules = async () => {
     try {
       setLoading(true)
-      // TODO: Filter by student's enrolled modules when backend supports it
-      const data = await getModules()
-      setModules(data)
+      const user = getCurrentUser()
+      const email = (user?.email || '').trim()
+      if (!email) {
+        setRows([])
+        return
+      }
+      const [enrollments, subjects] = await Promise.all([
+        getSchemaStudentSubjects(email),
+        getSchemaSubjects(),
+      ])
+      const subjectMap = new Map((subjects || []).map((s) => [String(s._id), s.subject_name || s._id]))
+      const list: StudentSubjectRow[] = (enrollments || []).map((e) => ({
+        _id: e._id,
+        subject_id: e.subject_id,
+        subject_name: subjectMap.get(e.subject_id) || e.subject_id,
+      }))
+      setRows(list)
     } catch (error) {
-      console.error('Error loading modules:', error)
+      console.error('Error loading my subjects:', error)
+      setRows([])
     } finally {
       setLoading(false)
     }
@@ -42,6 +59,9 @@ const StudentModules: React.FC = () => {
       <Typography variant="h4" fontWeight="bold" mb={3}>
         My Modules
       </Typography>
+      <Typography variant="body2" color="text.secondary" mb={2}>
+        Subjects you are enrolled in (from student_subjects).
+      </Typography>
 
       <Card>
         <CardContent>
@@ -49,37 +69,29 @@ const StudentModules: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Module Code</strong></TableCell>
-                  <TableCell><strong>Module Name</strong></TableCell>
-                  <TableCell><strong>Semester</strong></TableCell>
-                  <TableCell><strong>Credits</strong></TableCell>
-                  <TableCell><strong>Academic Year</strong></TableCell>
+                  <TableCell><strong>Subject ID</strong></TableCell>
+                  <TableCell><strong>Subject Name</strong></TableCell>
                   <TableCell><strong>Status</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={3} align="center">
                       <CircularProgress />
                     </TableCell>
                   </TableRow>
-                ) : modules.length === 0 ? (
+                ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <Typography color="textSecondary">No modules enrolled</Typography>
+                    <TableCell colSpan={3} align="center">
+                      <Typography color="textSecondary">No subjects enrolled. Ask admin to assign you subjects.</Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  modules.map((module) => (
-                    <TableRow key={module.module_id}>
-                      <TableCell>{module.module_code}</TableCell>
-                      <TableCell>{module.module_name}</TableCell>
-                      <TableCell>
-                        <Chip label={`Semester ${module.semester}`} size="small" />
-                      </TableCell>
-                      <TableCell>{module.credit_value}</TableCell>
-                      <TableCell>N/A</TableCell>
+                  rows.map((row) => (
+                    <TableRow key={row._id}>
+                      <TableCell>{row.subject_id}</TableCell>
+                      <TableCell>{row.subject_name}</TableCell>
                       <TableCell>
                         <Chip label="Enrolled" color="success" size="small" />
                       </TableCell>

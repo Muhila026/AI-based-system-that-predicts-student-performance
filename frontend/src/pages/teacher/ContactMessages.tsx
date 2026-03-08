@@ -31,6 +31,14 @@ import {
 import { motion } from 'framer-motion'
 import { getContactMessages, markMessageAsRead, replyToMessage, deleteMessage } from '../../lib/api'
 
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
+
 interface ContactMessage {
   id: string
   studentId: string
@@ -191,29 +199,24 @@ const ContactMessages: React.FC = () => {
   const unreadCount = messages.filter((msg) => !msg.read).length
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="h4" fontWeight="bold" mb={1}>
+          <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
             Contact Messages
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: THEME.muted }}>
             Messages from students
           </Typography>
         </Box>
         {unreadCount > 0 && (
-          <Chip
-            label={`${unreadCount} Unread`}
-            color="error"
-            icon={<MarkEmailRead />}
-            sx={{ fontSize: '0.875rem', height: 32 }}
-          />
+          <Chip label={`${unreadCount} Unread`} color="error" icon={<MarkEmailRead />} sx={{ fontSize: '0.875rem', height: 32, borderRadius: 0 }} />
         )}
       </Box>
 
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '1fr 1.5fr' }} gap={3}>
         {/* Messages List */}
-        <Card>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
           <CardContent>
             <Box display="flex" gap={2} mb={3}>
               <TextField
@@ -305,7 +308,7 @@ const ContactMessages: React.FC = () => {
         </Card>
 
         {/* Message Detail */}
-        <Card>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
           <CardContent>
             {selectedMessage ? (
               <>
@@ -315,20 +318,15 @@ const ContactMessages: React.FC = () => {
                       {selectedMessage.subject}
                     </Typography>
                     <Box display="flex" alignItems="center" gap={2} mb={2}>
-                      <Avatar sx={{ bgcolor: '#6366f1' }}>
+                      <Avatar sx={{ bgcolor: THEME.primary }}>
                         <Person />
                       </Avatar>
                       <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {selectedMessage.studentName}
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: THEME.textDark }}>{selectedMessage.studentName}</Typography>
+                        <Typography variant="caption" sx={{ color: THEME.muted }} display="flex" alignItems="center" gap={0.5}>
+                          <Email fontSize="small" /> {selectedMessage.studentEmail}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
-                          <Email fontSize="small" />
-                          {selectedMessage.studentEmail}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {selectedMessage.studentId}
-                        </Typography>
+                        <Typography variant="caption" sx={{ color: THEME.muted }}>{selectedMessage.studentId}</Typography>
                       </Box>
                     </Box>
                   </Box>
@@ -347,15 +345,7 @@ const ContactMessages: React.FC = () => {
                   {new Date(selectedMessage.timestamp).toLocaleString()}
                 </Typography>
 
-                <Box
-                  sx={{
-                    p: 2,
-                    mb: 3,
-                    bgcolor: '#f9fafb',
-                    borderRadius: 2,
-                    minHeight: 200,
-                  }}
-                >
+                <Box sx={{ p: 2, mb: 3, bgcolor: THEME.primaryLight, border: `1px solid ${THEME.primaryBorder}`, minHeight: 200 }}>
                   <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                     {selectedMessage.message}
                   </Typography>
@@ -363,19 +353,11 @@ const ContactMessages: React.FC = () => {
 
                 {selectedMessage.reply && (
                   <>
-                    <Divider sx={{ my: 3 }}>
-                      <Chip label="Your Reply" size="small" />
+                    <Divider sx={{ my: 3, borderColor: THEME.primaryBorder }}>
+                      <Chip label="Your Reply" size="small" sx={{ borderRadius: 0, bgcolor: THEME.primaryLight, color: THEME.primary }} />
                     </Divider>
-                    <Box
-                      sx={{
-                        p: 2,
-                        mb: 3,
-                        bgcolor: '#eff6ff',
-                        borderRadius: 2,
-                        borderLeft: '4px solid #3b82f6',
-                      }}
-                    >
-                      <Typography variant="body2" color="text.secondary" mb={1}>
+                    <Box sx={{ p: 2, mb: 3, bgcolor: THEME.primaryLight, borderLeft: `4px solid ${THEME.primary}` }}>
+                      <Typography variant="body2" sx={{ color: THEME.muted }} mb={1}>
                         {selectedMessage.replyTimestamp && new Date(selectedMessage.replyTimestamp).toLocaleString()}
                       </Typography>
                       <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -396,13 +378,9 @@ const ContactMessages: React.FC = () => {
               </>
             ) : (
               <Box textAlign="center" py={8}>
-                <Email sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" mb={1}>
-                  Select a message to view
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Choose a message from the list to read and reply
-                </Typography>
+                <Email sx={{ fontSize: 64, color: THEME.muted, mb: 2 }} />
+                <Typography variant="h6" sx={{ color: THEME.muted }} mb={1}>Select a message to view</Typography>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>Choose a message from the list to read and reply</Typography>
               </Box>
             )}
           </CardContent>
@@ -410,29 +388,14 @@ const ContactMessages: React.FC = () => {
       </Box>
 
       {/* Reply Dialog */}
-      <Dialog open={replyDialogOpen} onClose={() => setReplyDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Reply to {selectedMessage?.studentName}</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            multiline
-            rows={8}
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Type your reply here..."
-            sx={{ mt: 2 }}
-          />
+      <Dialog open={replyDialogOpen} onClose={() => setReplyDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 } }}>
+        <DialogTitle sx={{ borderBottom: `1px solid ${THEME.primaryBorder}`, color: THEME.textDark, fontWeight: 600 }}>Reply to {selectedMessage?.studentName}</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <TextField fullWidth multiline rows={8} value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply here..." sx={{ mt: 2 }} />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReplyDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleReply}
-            disabled={!replyText.trim()}
-            sx={{ bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
-          >
-            Send Reply
-          </Button>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, px: 3, py: 2 }}>
+          <Button onClick={() => setReplyDialogOpen(false)} sx={{ color: THEME.muted }}>Cancel</Button>
+          <Button variant="contained" onClick={handleReply} disabled={!replyText.trim()} sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}>Send Reply</Button>
         </DialogActions>
       </Dialog>
     </Box>

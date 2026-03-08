@@ -22,8 +22,8 @@ import {
   Avatar,
   CircularProgress,
   Alert,
-  Snackbar,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { Add, Edit, Delete, Search, Visibility, VisibilityOff } from '@mui/icons-material'
 import { getTeachers, addTeacher, deleteTeacher, getTeacherDetails, saveTeacherDetails, AdminUser, TeacherDetail } from '../../lib/api'
 
@@ -221,16 +221,13 @@ const TeacherManagement: React.FC = () => {
 
   return (
     <Box>
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>

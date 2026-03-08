@@ -13,7 +13,6 @@ import {
 import {
   Person,
   Email,
-  Phone,
   AdminPanelSettings,
   Edit,
   Save,
@@ -31,35 +30,38 @@ const THEME = {
 
 const AdminProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [profileData, setProfileData] = useState({
     fullName: '',
     email: '',
-    phone: '+1 (555) 123-4567',
-    adminId: 'ADM-2025-001',
-    role: 'Admin',
-    department: 'System Administration',
+    role: '',
   })
 
   useEffect(() => {
     const user = getCurrentUser()
     const displayRole = (user.role || 'admin').charAt(0).toUpperCase() + (user.role || 'admin').slice(1)
-    setProfileData((prev) => ({
-      ...prev,
-      fullName: user.name || prev.fullName,
-      email: user.email || prev.email,
+    setProfileData({
+      fullName: user.name || 'Admin',
+      email: user.email || '',
       role: displayRole,
-    }))
+    })
   }, [])
-
-  const handleInputChange = (field: string, value: string) => {
-    setProfileData({ ...profileData, [field]: value })
-  }
-
-  const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
-    await saveAdminProfile({ profileData })
+    await saveAdminProfile({ fullName: profileData.fullName, email: profileData.email })
+    // Keep UI in sync: update stored user name if present
+    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        user.name = profileData.fullName
+        const storage = localStorage.getItem('user') ? localStorage : sessionStorage
+        storage.setItem('user', JSON.stringify(user))
+      } catch {
+        // ignore
+      }
+    }
     setSaving(false)
     setIsEditing(false)
   }
@@ -71,12 +73,12 @@ const AdminProfile: React.FC = () => {
           Admin Profile
         </Typography>
         <Typography variant="body2" sx={{ color: THEME.muted }}>
-          Manage your administrator account settings
+          Your administrator account information
         </Typography>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 3 }}>
-        {/* Profile Card */}
+        {/* Profile summary card */}
         <Box>
           <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
             <CardContent sx={{ textAlign: 'center' }}>
@@ -95,15 +97,12 @@ const AdminProfile: React.FC = () => {
                     mb: 2,
                   }}
                 >
-                  {profileData.fullName ? profileData.fullName.charAt(0).toUpperCase() : '👨‍💼'}
+                  {profileData.fullName ? profileData.fullName.charAt(0).toUpperCase() : 'A'}
                 </Avatar>
               </motion.div>
 
               <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }} mb={0.5}>
                 {profileData.fullName || 'Admin'}
-              </Typography>
-              <Typography variant="body2" sx={{ color: THEME.muted }} mb={1}>
-                {profileData.adminId}
               </Typography>
               <Chip
                 icon={<AdminPanelSettings />}
@@ -114,31 +113,22 @@ const AdminProfile: React.FC = () => {
               <Divider sx={{ my: 2 }} />
 
               <Box textAlign="left">
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Email fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.email}</Typography>
-                </Box>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.phone}</Typography>
-                </Box>
                 <Box display="flex" alignItems="center" gap={1}>
-                  <AdminPanelSettings fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.department}</Typography>
+                  <Email fontSize="small" color="action" />
+                  <Typography variant="body2">{profileData.email || '—'}</Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
-
         </Box>
 
-        {/* Edit Form */}
+        {/* Edit form: only name editable; email and role read-only */}
         <Box>
           <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                 <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
-                  Personal Information
+                  Account details
                 </Typography>
                 {!isEditing ? (
                   <Button
@@ -153,7 +143,7 @@ const AdminProfile: React.FC = () => {
                       '&:hover': { backgroundColor: '#1e40af' },
                     }}
                   >
-                    Edit Profile
+                    Edit name
                   </Button>
                 ) : (
                   <Box display="flex" gap={1}>
@@ -173,18 +163,18 @@ const AdminProfile: React.FC = () => {
                         '&:hover': { backgroundColor: '#1e40af' },
                       }}
                     >
-                      {saving ? 'Saving...' : 'Save Changes'}
+                      {saving ? 'Saving...' : 'Save'}
                     </Button>
                   </Box>
                 )}
               </Box>
 
-              <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} gap={3}>
+              <Box display="flex" flexDirection="column" gap={3}>
                 <TextField
                   fullWidth
-                  label="Full Name"
+                  label="Full name"
                   value={profileData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, fullName: e.target.value }))}
                   disabled={!isEditing}
                   InputProps={{
                     startAdornment: <Person sx={{ mr: 1, color: 'action.active' }} />,
@@ -192,28 +182,11 @@ const AdminProfile: React.FC = () => {
                 />
                 <TextField
                   fullWidth
-                  label="Admin ID"
-                  value={profileData.adminId}
-                  disabled
-                />
-                <TextField
-                  fullWidth
-                  label="Email Address"
+                  label="Email"
                   value={profileData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  disabled={!isEditing}
+                  disabled
                   InputProps={{
                     startAdornment: <Email sx={{ mr: 1, color: 'action.active' }} />,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={profileData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  disabled={!isEditing}
-                  InputProps={{
-                    startAdornment: <Phone sx={{ mr: 1, color: 'action.active' }} />,
                   }}
                 />
                 <TextField
@@ -221,18 +194,13 @@ const AdminProfile: React.FC = () => {
                   label="Role"
                   value={profileData.role}
                   disabled
-                />
-                <TextField
-                  fullWidth
-                  label="Department"
-                  value={profileData.department}
-                  onChange={(e) => handleInputChange('department', e.target.value)}
-                  disabled={!isEditing}
+                  InputProps={{
+                    startAdornment: <AdminPanelSettings sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
                 />
               </Box>
             </CardContent>
           </Card>
-
         </Box>
       </Box>
     </Box>

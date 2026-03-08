@@ -10,10 +10,18 @@ import {
   ListItem,
   CircularProgress,
   Alert,
-  Snackbar,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { ThumbUp } from '@mui/icons-material'
 import { getAttendanceStudentList, setParticipationRating, type StudentListItem } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 const ParticipationRating: React.FC = () => {
   const [students, setStudents] = useState<StudentListItem[]>([])
@@ -53,29 +61,35 @@ const ParticipationRating: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-        Rate participation
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Set teacher rating (1–5) per student. Used for ML pipeline (no manual form).
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Rate participation
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Set teacher rating (1–5) per student. Used for ML pipeline and predicted grade.
+        </Typography>
+      </Box>
 
-      <Card>
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, backgroundColor: '#fff' }}>
         <CardContent>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <ThumbUp sx={{ color: THEME.primary, fontSize: 22 }} />
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>Participation ratings</Typography>
+          </Box>
           {loading ? (
             <Box display="flex" justifyContent="center" py={4}>
-              <CircularProgress />
+              <CircularProgress sx={{ color: THEME.primary }} />
             </Box>
           ) : students.length === 0 ? (
             <Alert severity="info">No students in the system.</Alert>
           ) : (
             <List>
               {students.map((s) => (
-                <ListItem key={s.student_id} sx={{ flexWrap: 'wrap', gap: 2 }}>
+                <ListItem key={s.student_id} sx={{ flexWrap: 'wrap', gap: 2, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
                   <Box sx={{ minWidth: 200 }}>
-                    <Typography variant="body2" fontWeight={600}>{s.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{s.email}</Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ color: THEME.textDark }}>{s.name}</Typography>
+                    <Typography variant="caption" sx={{ color: THEME.muted }}>{s.email}</Typography>
                   </Box>
                   <Box sx={{ width: 200, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Slider
@@ -85,6 +99,7 @@ const ParticipationRating: React.FC = () => {
                       step={1}
                       marks
                       valueLabelDisplay="on"
+                      sx={{ color: THEME.primary }}
                       onChange={(_, v) => setRatings((p) => ({ ...p, [s.student_id]: v as number }))}
                     />
                   </Box>
@@ -93,6 +108,7 @@ const ParticipationRating: React.FC = () => {
                     variant="outlined"
                     onClick={() => handleSave(s.student_id)}
                     disabled={savingId === s.student_id}
+                    sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, color: THEME.primary }}
                   >
                     {savingId === s.student_id ? 'Saving...' : 'Save'}
                   </Button>
@@ -103,11 +119,12 @@ const ParticipationRating: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={5000}
-        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
         message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+        autoHideDuration={5000}
       />
     </Box>
   )

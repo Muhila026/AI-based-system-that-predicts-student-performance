@@ -350,16 +350,43 @@ export type PredictedGradeResponse = {
   features: Record<string, number>
   predicted_score: number
   predicted_grade: string
+  confidence?: number | null
 }
 
 /** Current student's predicted grade from system data only. No manual form. */
-export async function getMyPredictedGrade(modelType: 'rf' | 'mlr' = 'rf'): Promise<PredictedGradeResponse> {
-  return await apiRequest<PredictedGradeResponse>(`/pipeline/me/predicted-grade?model_type=${modelType}`)
+export async function getMyPredictedGrade(): Promise<PredictedGradeResponse> {
+  return await apiRequest<PredictedGradeResponse>('/pipeline/me/predicted-grade')
 }
 
 /** Current student's ML features from system data. */
 export async function getMyMlFeatures(): Promise<Record<string, unknown>> {
   return await apiRequest<Record<string, unknown>>('/pipeline/me/ml-features')
+}
+
+/** Log study hours for prediction: weekly_self_study_hours = sum of studyHours in last 7 days. */
+export async function createMyStudyLog(params: {
+  studyHours: number
+  studyDate?: string
+  courseId?: string
+  notes?: string
+}): Promise<{ id: string; studyDate: string; studyHours: number }> {
+  const body: Record<string, unknown> = { studyHours: params.studyHours }
+  if (params.studyDate) body.studyDate = params.studyDate
+  if (params.courseId) body.courseId = params.courseId
+  if (params.notes != null) body.notes = params.notes
+  return await apiRequest('/study-logs/me', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export type StudyLogItem = { id: string; studyDate: string; studyHours: number; notes?: string; createdAt?: string }
+
+/** List my study logs (for last N days, default 30). */
+export async function getMyStudyLogs(days: number = 30): Promise<StudyLogItem[]> {
+  try {
+    return await apiRequest<StudyLogItem[]>(`/study-logs/me?days=${days}`)
+  } catch (e) {
+    console.error('getMyStudyLogs', e)
+    return []
+  }
 }
 
 export type AttendanceWithPercentage = {
@@ -1102,6 +1129,89 @@ export async function getSchemaAssignmentStudents(assignmentId: string): Promise
   return apiRequest<Array<{ student_id: string; student_name: string; email: string }>>(
     `/schema/assignments/${encodeURIComponent(assignmentId)}/students`
   )
+}
+
+/** Student: upload my assignment submission (PDF). */
+export async function submitAssignmentPdf(assignmentId: string, file: File): Promise<void> {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${API_BASE_URL}/schema/assignments/${encodeURIComponent(assignmentId)}/submit`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Upload failed' }))
+    throw new Error(err?.detail || `Upload failed: ${response.status}`)
+  }
+}
+
+export type MySubmissionItem = {
+  id: string
+  assignment_id: string
+  assignment_title: string
+  subject_id: string
+  subject_name: string
+  submitted_at: string | null
+  marks: number | null
+  max_marks: number
+  has_pdf: boolean
+}
+
+/** Student: list my assignment submissions with result (marks). */
+export async function getMyAssignmentSubmissions(): Promise<MySubmissionItem[]> {
+  try {
+    return await apiRequest<MySubmissionItem[]>('/schema/assignments/submissions/me')
+  } catch (e) {
+    console.error('getMyAssignmentSubmissions', e)
+    return []
+  }
+}
+
+export type AssignmentSubmissionItem = {
+  id: string
+  userEmail: string
+  student_name: string
+  submitted_at: string | null
+  marks: number | null
+  max_marks: number
+  has_pdf: boolean
+}
+
+/** Teacher/Admin: list submissions for an assignment. */
+export async function getAssignmentSubmissions(assignmentId: string): Promise<AssignmentSubmissionItem[]> {
+  try {
+    return await apiRequest<AssignmentSubmissionItem[]>(
+      `/schema/assignments/${encodeURIComponent(assignmentId)}/submissions`
+    )
+  } catch (e) {
+    console.error('getAssignmentSubmissions', e)
+    return []
+  }
+}
+
+/** Teacher/Admin: set marks for a submission. */
+export async function gradeSubmission(submissionId: string, marks: number): Promise<void> {
+  await apiRequest(`/schema/assignments/submissions/${encodeURIComponent(submissionId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ marks }),
+  })
+}
+
+/** Download submission PDF (student own / teacher / admin). */
+export async function getSubmissionPdfBlob(submissionId: string): Promise<Blob> {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const response = await fetch(
+    `${API_BASE_URL}/schema/assignments/submissions/files/${encodeURIComponent(submissionId)}`,
+    { headers }
+  )
+  if (!response.ok) throw new Error('Failed to load submission PDF')
+  return response.blob()
 }
 
 export async function getUsers(): Promise<AdminUser[]> {

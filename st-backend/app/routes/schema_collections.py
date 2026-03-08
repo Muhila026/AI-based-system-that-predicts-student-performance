@@ -24,9 +24,12 @@ from app.models import (
 
 router = APIRouter(prefix="/api/v1/schema", tags=["Schema Collections"])
 
-# PDF uploads for assignments
+# PDF uploads for assignments (teacher uploads assignment PDF)
 ASSIGNMENT_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "assignments"
 ASSIGNMENT_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Student assignment submission PDFs
+SUBMISSION_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "assignment_submissions"
+SUBMISSION_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------- Subjects ----------
@@ -94,14 +97,24 @@ async def delete_subject(
 
 
 # ---------- Student Subjects ----------
+def _student_id_filter(user: dict, student_id: str | None):
+    """For student role, only allow viewing own enrollments. Admin/teacher can pass student_id."""
+    role = (user.get("role") or "").strip().upper()
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if role == "STUDENT" and email:
+        return email  # student always sees only their own
+    return student_id
+
+
 @router.get("/student-subjects")
 async def list_student_subjects(
     student_id: str = Query(None),
     user: dict = Depends(require_role(["admin", "teacher", "student"])),
 ):
-    """List student_subjects. Filter by student_id if given."""
+    """List student_subjects. Filter by student_id if given. Students only see their own."""
     db = get_database()
-    query = {} if not student_id else {"student_id": student_id}
+    effective_id = _student_id_filter(user, student_id)
+    query = {} if not effective_id else {"student_id": effective_id}
     cursor = db.student_subjects.find(query, {"_id": 1, "student_id": 1, "subject_id": 1})
     items = []
     async for doc in cursor:
@@ -653,6 +666,206 @@ async def list_students_for_assignment(
         name = name.strip() or sid
         students.append({"student_id": sid, "student_name": name, "email": sid})
     return students
+
+
+def _sanitize_email_for_file(email: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]", "_", (email or "").strip())[:64]
+
+
+# ---------- Student assignment submission (upload PDF, teacher grades, student sees result) ----------
+@router.post("/assignments/{assignment_id}/submit")
+async def submit_assignment_pdf(
+    assignment_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_role(["student"])),
+):
+    """Student uploads their assignment as PDF. One submission per student per assignment (replaces if resubmit)."""
+    db = get_database()
+    email = (user.get("email") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    doc = await db.subject_assignments.find_one({"id": assignment_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if not await _student_enrolled_in_subject(db, email, doc.get("subject_id")):
+        raise HTTPException(status_code=403, detail="You are not enrolled in this subject")
+    fn = (file.filename or "").lower()
+    ct = (file.content_type or "").lower()
+    if not (fn.endswith(".pdf") or ct == "application/pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="File is empty")
+    safe_email = _sanitize_email_for_file(email)
+    filename = f"{assignment_id}_{safe_email}.pdf"
+    path = SUBMISSION_UPLOAD_DIR / filename
+    path.write_bytes(content)
+    submission_pdf_path = filename
+    max_marks = float(doc.get("max_marks", 100))
+    now = _now_iso()
+    student_id_hash = abs(hash(email)) % 1000000
+    existing = await db.assignment_submissions.find_one(
+        {"assignment_id": assignment_id, "userEmail": email}
+    )
+    if existing:
+        updates = {"submission_pdf_path": submission_pdf_path, "submitted_at": now}
+        if not existing.get("id"):
+            updates["id"] = str(uuid.uuid4())
+        await db.assignment_submissions.update_one(
+            {"assignment_id": assignment_id, "userEmail": email},
+            {"$set": updates},
+        )
+    else:
+        await db.assignment_submissions.insert_one({
+            "id": str(uuid.uuid4()),
+            "assignment_id": assignment_id,
+            "student_id": student_id_hash,
+            "userEmail": email,
+            "marks": None,
+            "max_marks": max_marks,
+            "createdAt": now,
+            "submission_pdf_path": submission_pdf_path,
+            "submitted_at": now,
+        })
+    return {"message": "Submission uploaded", "assignment_id": assignment_id}
+
+
+@router.get("/assignments/submissions/me")
+async def list_my_submissions(user: dict = Depends(require_role(["student"]))):
+    """List current student's assignment submissions with assignment title and subject. For student portal."""
+    db = get_database()
+    email = (user.get("email") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    cursor = db.assignment_submissions.find({"userEmail": email}).sort("submitted_at", -1)
+    items = []
+    async for sub in cursor:
+        aid = sub.get("assignment_id")
+        if not aid:
+            continue
+        assign = await db.subject_assignments.find_one({"id": aid}, {"title": 1, "subject_id": 1})
+        if not assign:
+            continue
+        subj = await db.subjects.find_one({"_id": assign.get("subject_id")}, {"subject_name": 1})
+        items.append({
+            "id": sub.get("id"),
+            "assignment_id": aid,
+            "assignment_title": assign.get("title") or "—",
+            "subject_id": assign.get("subject_id"),
+            "subject_name": (subj or {}).get("subject_name") or assign.get("subject_id"),
+            "submitted_at": sub.get("submitted_at"),
+            "marks": sub.get("marks"),
+            "max_marks": sub.get("max_marks"),
+            "has_pdf": bool(sub.get("submission_pdf_path")),
+        })
+    return items
+
+
+@router.get("/assignments/{assignment_id}/submissions")
+async def list_assignment_submissions(
+    assignment_id: str,
+    user: dict = Depends(require_role(["admin", "teacher"])),
+):
+    """List all submissions for an assignment. Teacher: only for subjects they teach. Admin: all."""
+    db = get_database()
+    doc = await db.subject_assignments.find_one({"id": assignment_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    role = (user.get("role") or "user").strip().lower()
+    email = (user.get("email") or "").strip()
+    if role == "teacher" and doc.get("teacher_id") != email:
+        if not await _teacher_teaches_subject(db, email, doc.get("subject_id")):
+            raise HTTPException(status_code=403, detail="Not allowed")
+    cursor = db.assignment_submissions.find(
+        {"assignment_id": assignment_id}
+    ).sort("submitted_at", -1)
+    items = []
+    async for sub in cursor:
+        u = await db.users.find_one({"email": sub.get("userEmail")}, {"_id": 0, "firstName": 1, "lastName": 1, "email": 1})
+        name = (u.get("firstName") or "") + " " + (u.get("lastName") or "") if u else ""
+        name = name.strip() or sub.get("userEmail", "")
+        items.append({
+            "id": sub.get("id"),
+            "userEmail": sub.get("userEmail"),
+            "student_name": name,
+            "submitted_at": sub.get("submitted_at"),
+            "marks": sub.get("marks"),
+            "max_marks": sub.get("max_marks"),
+            "has_pdf": bool(sub.get("submission_pdf_path")),
+        })
+    return items
+
+
+@router.put("/assignments/submissions/{submission_id}")
+async def grade_submission(
+    submission_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(require_role(["admin", "teacher"])),
+):
+    """Teacher/Admin set marks for a submission."""
+    db = get_database()
+    sub = await db.assignment_submissions.find_one({"id": submission_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    assign = await db.subject_assignments.find_one({"id": sub.get("assignment_id")})
+    if not assign:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    role = (user.get("role") or "user").strip().lower()
+    email = (user.get("email") or "").strip()
+    if role == "teacher" and assign.get("teacher_id") != email:
+        if not await _teacher_teaches_subject(db, email, assign.get("subject_id")):
+            raise HTTPException(status_code=403, detail="Not allowed")
+    marks = body.get("marks")
+    if marks is not None:
+        try:
+            m = float(marks)
+            await db.assignment_submissions.update_one(
+                {"id": submission_id},
+                {"$set": {"marks": m, "updatedAt": _now_iso()}},
+            )
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid marks")
+    updated = await db.assignment_submissions.find_one({"id": submission_id}, {"_id": 0})
+    return {
+        "id": updated.get("id"),
+        "assignment_id": updated.get("assignment_id"),
+        "userEmail": updated.get("userEmail"),
+        "marks": updated.get("marks"),
+        "max_marks": updated.get("max_marks"),
+        "submitted_at": updated.get("submitted_at"),
+    }
+
+
+@router.get("/assignments/submissions/files/{submission_id}")
+async def serve_submission_pdf(
+    submission_id: str,
+    user: dict = Depends(require_role(["admin", "teacher", "student"])),
+):
+    """Download/view a submission PDF. Student can only view their own."""
+    db = get_database()
+    sub = await db.assignment_submissions.find_one({"id": submission_id})
+    if not sub or not sub.get("submission_pdf_path"):
+        raise HTTPException(status_code=404, detail="Submission or file not found")
+    path = SUBMISSION_UPLOAD_DIR / sub["submission_pdf_path"]
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    role = (user.get("role") or "user").strip().lower()
+    email = (user.get("email") or "").strip()
+    if role == "student":
+        if sub.get("userEmail") != email:
+            raise HTTPException(status_code=403, detail="You can only view your own submission")
+    else:
+        assign = await db.subject_assignments.find_one({"id": sub.get("assignment_id")})
+        if not assign:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        if role == "teacher" and assign.get("teacher_id") != email:
+            if not await _teacher_teaches_subject(db, email, assign.get("subject_id")):
+                raise HTTPException(status_code=403, detail="Not allowed")
+    return FileResponse(
+        path=str(path),
+        filename=f"submission_{submission_id}.pdf",
+        media_type="application/pdf",
+    )
 
 
 # ---------- Predictions (ML result: student_id, subject_id, predicted_result, risk_level) ----------

@@ -21,11 +21,18 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  Snackbar,
-  Alert,
 } from '@mui/material'
-import { Add, Edit, Delete } from '@mui/icons-material'
+import CenteredMessage from '../../components/CenteredMessage'
+import { Add, Edit, Delete, Grade } from '@mui/icons-material'
 import { getResults, createResult, updateResult, deleteResult, getTeacherAssignments, getStudents, type StudentResult, type StudentResultCreate, type AdminUser } from '../../lib/api'
+
+const THEME = {
+  primary: '#1e3a8a',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#DBEAFE',
+  muted: '#6b7280',
+  textDark: '#1f2937',
+}
 
 /** Assignment option for the assessment dropdown (from teacher assignments). */
 type AssignmentOption = { id: string; title: string; max_marks?: number }
@@ -188,98 +195,92 @@ const StudentResults: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Snackbar
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight="bold">
-          Student Results
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <TextField
-            select
-            label="Filter by Module"
-            value={selectedModule}
-            onChange={(e) => setSelectedModule(e.target.value)}
-            sx={{ minWidth: 200 }}
-          >
-            <MenuItem value="">All Modules</MenuItem>
-            {/* TODO: Populate with actual modules */}
-          </TextField>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-            sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-          >
-            Add Result
-          </Button>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+              Student Results
+            </Typography>
+            <Typography variant="body2" sx={{ color: THEME.muted }}>
+              Add and manage grades for student assessments.
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              select
+              size="small"
+              label="Filter by Module"
+              value={selectedModule}
+              onChange={(e) => setSelectedModule(e.target.value)}
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="">All Modules</MenuItem>
+            </TextField>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+              sx={{ borderRadius: 0, backgroundColor: THEME.primary, textTransform: 'none', fontWeight: 600, '&:hover': { backgroundColor: '#1e40af' } }}
+            >
+              Add Result
+            </Button>
+          </Box>
         </Box>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
+      <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0, backgroundColor: '#fff' }}>
+        <CardContent sx={{ py: 2.5, px: 2.5 }}>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Grade sx={{ color: THEME.primary, fontSize: 22 }} />
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>Results</Typography>
+          </Box>
+          <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none', border: `1px solid ${THEME.primaryBorder}` }}>
+            <Table size="small">
               <TableHead>
-                <TableRow>
-                  <TableCell><strong>Student Name</strong></TableCell>
-                  <TableCell><strong>Assessment</strong></TableCell>
-                  <TableCell><strong>Module</strong></TableCell>
-                  <TableCell><strong>Marks Obtained</strong></TableCell>
-                  <TableCell><strong>Grade</strong></TableCell>
-                  <TableCell><strong>Date</strong></TableCell>
-                  <TableCell><strong>Actions</strong></TableCell>
+                <TableRow sx={{ borderBottom: `2px solid ${THEME.primaryBorder}` }}>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Student Name</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Assessment</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Module</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Marks</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Grade</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <CircularProgress />
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <CircularProgress sx={{ color: THEME.primary }} />
                     </TableCell>
                   </TableRow>
                 ) : results.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <Typography color="textSecondary">No results found</Typography>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: THEME.muted }}>
+                      No results found
                     </TableCell>
                   </TableRow>
                 ) : (
                   results.map((result) => (
-                    <TableRow key={String(result.result_id)}>
-                      <TableCell>{result.student_name || 'N/A'}</TableCell>
-                      <TableCell>{result.assessment_title || 'N/A'}</TableCell>
-                      <TableCell>{result.module_name || 'N/A'}</TableCell>
-                      <TableCell>{result.marks_obtained}</TableCell>
-                      <TableCell>
-                        <Chip label={result.grade} color="primary" size="small" />
-                      </TableCell>
-                      <TableCell>{result.created_at ? new Date(result.created_at).toLocaleDateString() : 'N/A'}</TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenDialog(result)}
-                          color="primary"
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(result.result_id)}
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
+                    <TableRow key={String(result.result_id)} sx={{ borderBottom: `1px solid ${THEME.primaryBorder}`, '&:hover': { backgroundColor: THEME.primaryLight } }}>
+                      <TableCell sx={{ py: 1.5, color: THEME.textDark }}>{result.student_name || 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 1.5, color: THEME.textDark }}>{result.assessment_title || 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 1.5, color: THEME.muted }}>{result.module_name || 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>{result.marks_obtained}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}><Chip label={result.grade} size="small" sx={{ borderRadius: 0, bgcolor: THEME.primaryLight, color: THEME.primary }} /></TableCell>
+                      <TableCell sx={{ py: 1.5, color: THEME.muted }}>{result.created_at ? new Date(result.created_at).toLocaleDateString() : 'N/A'}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <IconButton size="small" onClick={() => handleOpenDialog(result)} sx={{ color: THEME.primary }}><Edit fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => handleDelete(result.result_id)} color="error"><Delete fontSize="small" /></IconButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -291,11 +292,11 @@ const StudentResults: React.FC = () => {
       </Card>
 
       {/* Create/Edit Result Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth PaperProps={{ sx: { border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 } }}>
+        <DialogTitle sx={{ borderBottom: `1px solid ${THEME.primaryBorder}`, color: THEME.textDark, fontWeight: 600 }}>
           {editingResult ? 'Edit Result' : 'Add New Result'}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               select
@@ -359,9 +360,9 @@ const StudentResults: React.FC = () => {
             />
 
             {formData.assessment_id && formData.marks_obtained && (
-              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Calculated Grade: <strong>{calculateGrade(
+              <Box sx={{ p: 2, bgcolor: THEME.primaryLight, border: `1px solid ${THEME.primaryBorder}` }}>
+                <Typography variant="body2" sx={{ color: THEME.muted }}>
+                  Calculated Grade: <strong style={{ color: THEME.primary }}>{calculateGrade(
                     parseFloat(formData.marks_obtained) || 0,
                     assignments.find(a => a.id === formData.assessment_id)?.max_marks ?? 100
                   )}</strong>
@@ -370,13 +371,9 @@ const StudentResults: React.FC = () => {
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-          >
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, px: 3, py: 2 }}>
+          <Button onClick={handleCloseDialog} sx={{ color: THEME.muted }}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained" sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}>
             {editingResult ? 'Update' : 'Create'}
           </Button>
         </DialogActions>

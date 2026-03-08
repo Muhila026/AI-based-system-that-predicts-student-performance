@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends, Body
+from datetime import datetime, timedelta
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -7,6 +7,7 @@ import joblib
 import numpy as np
 
 from app.database import get_database
+from app.auth import get_current_user
 from app.models import (
     StudentStudyLogRequest,
     StudentStudyLogResponse,
@@ -80,6 +81,68 @@ async def create_study_log(request: StudentStudyLogRequest):
     }
     await db.student_study_logs.insert_one(doc)
     return StudentStudyLogResponse(**doc)
+
+
+@study_logs_router.post("/me", response_model=StudentStudyLogResponse)
+async def create_my_study_log(
+    studyHours: float = Body(..., embed=True),
+    studyDate: str | None = Body(None, embed=True),
+    courseId: str = Body("", embed=True),
+    notes: str | None = Body(None, embed=True),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Log study hours for the current user. Used for prediction: weekly_self_study_hours
+    is the sum of studyHours in the last 7 days. studyDate format: YYYY-MM-DD (default: today).
+    """
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if studyHours < 0:
+        raise HTTPException(status_code=400, detail="studyHours must be >= 0")
+    date_str = (studyDate or "").strip() or datetime.utcnow().date().isoformat()
+    db = get_database()
+    log_id = str(uuid.uuid4())
+    now = _now_iso()
+    doc = {
+        "id": log_id,
+        "userEmail": email,
+        "courseId": courseId or "",
+        "studyHours": float(studyHours),
+        "studyDate": date_str,
+        "notes": notes or "",
+        "isActive": True,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    await db.student_study_logs.insert_one(doc)
+    return StudentStudyLogResponse(**doc)
+
+
+@study_logs_router.get("/me")
+async def list_my_study_logs(
+    days: int = 30,
+    user: dict = Depends(get_current_user),
+):
+    """List current user's study logs (default last 30 days). For analysis and prediction."""
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    since = (datetime.utcnow().date() - timedelta(days=min(days, 365))).isoformat()
+    db = get_database()
+    cursor = db.student_study_logs.find(
+        {"userEmail": email, "isActive": True, "studyDate": {"$gte": since}}
+    ).sort("studyDate", -1)
+    items = []
+    async for doc in cursor:
+        items.append({
+            "id": doc.get("id"),
+            "studyDate": doc.get("studyDate"),
+            "studyHours": doc.get("studyHours"),
+            "notes": doc.get("notes"),
+            "createdAt": doc.get("createdAt"),
+        })
+    return items
 
 
 def _student_id_from_email(email: str) -> int:

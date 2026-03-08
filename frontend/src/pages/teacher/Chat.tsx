@@ -11,9 +11,8 @@ import {
   InputAdornment,
   Paper,
   Chip,
-  Snackbar,
-  Alert,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import {
   Send,
   Search,
@@ -243,16 +242,13 @@ const Chat: React.FC = () => {
 
   return (
     <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={5000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar((s) => ({ ...s, open: false }))}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={5000}
+      />
       <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
         <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
           Chat

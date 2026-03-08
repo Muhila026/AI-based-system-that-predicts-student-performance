@@ -62,19 +62,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
   const [dashboardData, setDashboardData] = useState<DashboardData>({ stats: [] })
   const [courses, setCourses] = useState<AdminCourse[]>([])
   const [assignments, setAssignments] = useState<any[]>([])
-  const [teacherName, setTeacherName] = useState<string>('')
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr)
-        setTeacherName(user.name || user.email || 'Teacher')
-      } catch {
-        setTeacherName('Teacher')
-      }
-    }
-  }, [])
 
   useEffect(() => {
     loadDashboardData()
@@ -97,7 +84,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
       console.error('Failed to load dashboard data:', error)
       setDashboardData({
         stats: [
-          { title: 'Total Students', value: '—', change: 'Connect backend for live data' },
+          { title: 'Total Students', value: '—', change: '—' },
           { title: 'Active Courses', value: '—', change: '—' },
           { title: 'Avg Performance', value: '—', change: '—' },
           { title: 'Pending Grading', value: '—', change: '—' },
@@ -125,13 +112,19 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
 
   const recentActivities =
     assignments.length > 0
-      ? assignments.slice(0, 5).map((a) => ({
-          activity: a.title
-            ? `Assignment "${a.title}"${a.subject ? ` (${a.subject})` : ''} — ${a.submitted ?? 0}/${a.students ?? 0} submitted`
-            : 'Assignment',
-          time: a.dueDate ? `Due ${a.dueDate}` : '—',
-        }))
-      : [{ activity: 'No assignments yet. Create one from Quick Actions.', time: '—' }]
+      ? assignments.slice(0, 5).map((a) => {
+          const title = (a.title || 'Untitled').trim()
+          const subject = a.subject ? ` (${a.subject})` : ''
+          const submitted = a.submitted ?? 0
+          const total = a.students ?? 0
+          const count = total > 0 ? `${submitted}/${total}` : '—'
+          return {
+            title: `${title}${subject}`,
+            count,
+            due: a.dueDate ? `Due ${a.dueDate}` : null,
+          }
+        })
+      : []
 
   const classOverview = courses.map((c) => ({
     id: c.id ?? (c as any)._id ?? '',
@@ -154,7 +147,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
 
   return (
     <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
-      {/* Header — same style as Admin */}
       <Box
         sx={{
           mb: 3,
@@ -170,11 +162,11 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
           Teacher Dashboard
         </Typography>
         <Typography variant="body2" sx={{ color: THEME.muted }}>
-          Welcome back, {teacherName}. Overview of your classes and student performance.
+          Overview of your classes and performance.
         </Typography>
       </Box>
 
-      {/* Stats Cards — same style as Admin */}
+      {/* Stats */}
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress sx={{ color: THEME.primary }} />
@@ -252,15 +244,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
         </Box>
       )}
 
-      {/* Two columns — same layout as Admin */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
           gap: 2.5,
         }}
-      >
-        {/* Class Overview — same card style as Admin User Distribution */}
+        >
         <Card
           elevation={0}
           sx={{
@@ -278,7 +268,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             </Box>
             {classDistribution.length === 0 ? (
               <Typography variant="body2" sx={{ color: THEME.muted }}>
-                No courses assigned yet. Contact admin to get assigned to courses.
+                No courses assigned.
               </Typography>
             ) : (
               classDistribution.map((item, index) => {
@@ -314,7 +304,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
           </CardContent>
         </Card>
 
-        {/* Recent Assignments — same card style as Admin Recent Activities */}
         <Card
           elevation={0}
           sx={{
@@ -328,12 +317,12 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
               <Box display="flex" alignItems="center" gap={1}>
                 <Assignment sx={{ color: THEME.primary, fontSize: 22 }} />
                 <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
-                  Recent Assignments
+                  Recent Assessments
                 </Typography>
               </Box>
               {assignments.length > 0 && (
                 <ButtonBase
-                  onClick={() => handleQuickAction('Assignments')}
+                  onClick={() => handleQuickAction('Assessments')}
                   sx={{ borderRadius: 0, p: 0.5 }}
                 >
                   <Typography variant="body2" sx={{ color: THEME.primary, fontWeight: 600 }}>
@@ -343,30 +332,52 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
                 </ButtonBase>
               )}
             </Box>
-            {recentActivities.map((item, index) => (
-              <Box
-                key={index}
-                sx={{
-                  py: 1.75,
-                  borderBottom:
-                    index < recentActivities.length - 1
-                      ? `1px solid ${THEME.primaryBorder}`
-                      : 'none',
-                }}
-              >
-                <Typography variant="body2" fontWeight="500" sx={{ color: THEME.textDark }}>
-                  {item.activity}
-                </Typography>
-                <Typography variant="caption" sx={{ color: THEME.muted }}>
-                  {item.time}
-                </Typography>
-              </Box>
-            ))}
+            {recentActivities.length === 0 ? (
+              <Typography variant="body2" sx={{ color: THEME.muted }}>
+                No assignments yet.
+              </Typography>
+            ) : (
+              recentActivities.map((item, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    py: 1.5,
+                    borderBottom:
+                      index < recentActivities.length - 1
+                        ? `1px solid ${THEME.primaryBorder}`
+                        : 'none',
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                    <Typography
+                      variant="body2"
+                      fontWeight="500"
+                      sx={{
+                        color: THEME.textDark,
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: THEME.muted, flexShrink: 0 }}>
+                      {item.count}
+                    </Typography>
+                  </Box>
+                  {item.due && (
+                    <Typography variant="caption" sx={{ color: THEME.muted, display: 'block', mt: 0.25 }}>
+                      {item.due}
+                    </Typography>
+                  )}
+                </Box>
+              ))
+            )}
           </CardContent>
         </Card>
       </Box>
 
-      {/* Quick Actions — same button style as Admin Add User */}
       <Box sx={{ mt: 4 }}>
         <Typography variant="subtitle2" fontWeight="600" sx={{ color: THEME.textDark, mb: 1.5 }}>
           Quick Actions
@@ -380,7 +391,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
         >
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <ButtonBase
-              onClick={() => handleQuickAction('Assignments')}
+              onClick={() => handleQuickAction('Assessments')}
               sx={{
                 px: 2,
                 py: 1.5,
@@ -392,7 +403,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             >
               <Add sx={{ color: THEME.primary, mr: 1, fontSize: 20 }} />
               <Typography variant="body2" fontWeight="600" sx={{ color: THEME.primary }}>
-                Assignments
+                Assessments
               </Typography>
             </ButtonBase>
           </motion.div>

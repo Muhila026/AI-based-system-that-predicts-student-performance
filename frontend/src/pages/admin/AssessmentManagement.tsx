@@ -19,11 +19,26 @@ import {
   TextField,
   MenuItem,
   IconButton,
-  Snackbar,
-  Alert,
+  CircularProgress,
 } from '@mui/material'
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import { getAssessments, createAssessment, updateAssessment, deleteAssessment, getCourses, type Assessment, type AssessmentCreate, type AdminCourse } from '../../lib/api'
+import CenteredMessage from '../../components/CenteredMessage'
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, List as ListIcon, GetApp as GetAppIcon } from '@mui/icons-material'
+import {
+  getAssessments,
+  createAssessment,
+  updateAssessment,
+  deleteAssessment,
+  getCourses,
+  getSchemaAssignments,
+  getAssignmentSubmissions,
+  gradeSubmission,
+  getSubmissionPdfBlob,
+  type Assessment,
+  type AssessmentCreate,
+  type AdminCourse,
+  type SchemaSubjectAssignment,
+  type AssignmentSubmissionItem,
+} from '../../lib/api'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -51,6 +66,12 @@ const AssessmentManagement: React.FC = () => {
     title: '',
     description: '',
   })
+  const [subjectAssignments, setSubjectAssignments] = useState<SchemaSubjectAssignment[]>([])
+  const [submissionsDialog, setSubmissionsDialog] = useState<{ open: boolean; assignmentId: string; title: string }>({ open: false, assignmentId: '', title: '' })
+  const [submissions, setSubmissions] = useState<AssignmentSubmissionItem[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [marksEdit, setMarksEdit] = useState<Record<string, string>>({})
+  const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -58,15 +79,68 @@ const AssessmentManagement: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [assessmentsData, coursesData] = await Promise.all([
+      const [assessmentsData, coursesData, schemaAssignments] = await Promise.all([
         getAssessments(),
         getCourses(),
+        getSchemaAssignments(),
       ])
       setAssessments(assessmentsData)
       setCourses(coursesData)
+      setSubjectAssignments(Array.isArray(schemaAssignments) ? schemaAssignments : [])
     } catch (error) {
       console.error('Error loading data:', error)
       showSnackbar('Failed to load data', 'error')
+    }
+  }
+
+  const openSubmissions = async (assignmentId: string, title: string) => {
+    setSubmissionsDialog({ open: true, assignmentId, title })
+    setSubmissionsLoading(true)
+    setMarksEdit({})
+    try {
+      const list = await getAssignmentSubmissions(assignmentId)
+      setSubmissions(list)
+      const initial: Record<string, string> = {}
+      list.forEach((s) => { initial[s.id] = s.marks != null ? String(s.marks) : '' })
+      setMarksEdit(initial)
+    } catch {
+      setSubmissions([])
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }
+
+  const handleSaveMarks = async (submissionId: string) => {
+    const val = marksEdit[submissionId]
+    const num = val === '' ? NaN : parseFloat(val)
+    if (isNaN(num) || num < 0) {
+      showSnackbar('Enter a valid marks (number ≥ 0)', 'error')
+      return
+    }
+    setSavingSubmissionId(submissionId)
+    try {
+      await gradeSubmission(submissionId, num)
+      showSnackbar('Marks saved', 'success')
+      const list = await getAssignmentSubmissions(submissionsDialog.assignmentId)
+      setSubmissions(list)
+    } catch (e: any) {
+      showSnackbar(e?.message || 'Failed to save', 'error')
+    } finally {
+      setSavingSubmissionId(null)
+    }
+  }
+
+  const handleDownloadSubmission = async (submissionId: string) => {
+    try {
+      const blob = await getSubmissionPdfBlob(submissionId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `submission_${submissionId}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showSnackbar('Failed to download PDF', 'error')
     }
   }
   
@@ -215,6 +289,89 @@ const AssessmentManagement: React.FC = () => {
         </CardContent>
       </Card>
 
+      <Typography variant="h6" sx={{ mt: 4, mb: 2, color: THEME.textDark }}>Subject assignment submissions (view all)</Typography>
+      <Card variant="outlined" sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, borderWidth: 1 }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none', border: 'none' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: THEME.primaryLight }}>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Title</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Subject</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Max Marks</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: THEME.primary }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {subjectAssignments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 3, color: THEME.muted }}>No subject assignments. Create from Subjects & Marks (Schema) or teacher Assessments.</TableCell>
+                  </TableRow>
+                ) : (
+                  subjectAssignments.map((row) => (
+                    <TableRow key={row.id} sx={{ '&:hover': { bgcolor: THEME.primaryLight } }}>
+                      <TableCell sx={{ color: THEME.textDark }}>{row.title || '—'}</TableCell>
+                      <TableCell sx={{ color: THEME.muted }}>{row.subject_name || row.subject_id}</TableCell>
+                      <TableCell sx={{ color: THEME.textDark }}>{row.assignment_type || 'ASSIGNMENT'}</TableCell>
+                      <TableCell sx={{ color: THEME.textDark }}>{row.max_marks}</TableCell>
+                      <TableCell>
+                        <Button size="small" variant="outlined" startIcon={<ListIcon />} onClick={() => openSubmissions(row.id, row.title || '—')} sx={{ textTransform: 'none' }}>
+                          View submissions
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      <Dialog open={submissionsDialog.open} onClose={() => setSubmissionsDialog((p) => ({ ...p, open: false }))} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
+        <DialogTitle sx={{ color: THEME.textDark, borderBottom: `1px solid ${THEME.primaryBorder}`, pb: 2 }}>Submissions: {submissionsDialog.title}</DialogTitle>
+        <DialogContent>
+          {submissionsLoading ? (
+            <Box display="flex" justifyContent="center" py={3}><CircularProgress sx={{ color: THEME.primary }} /></Box>
+          ) : submissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">No submissions yet.</Typography>
+          ) : (
+            <TableContainer sx={{ mt: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Student</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Submitted</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Marks</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {submissions.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>{s.student_name || s.userEmail}</TableCell>
+                      <TableCell sx={{ color: THEME.muted }}>{s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</TableCell>
+                      <TableCell>
+                        <TextField size="small" type="number" value={marksEdit[s.id] ?? ''} onChange={(e) => setMarksEdit((p) => ({ ...p, [s.id]: e.target.value }))} placeholder="Marks" sx={{ width: 80 }} inputProps={{ min: 0, max: s.max_marks }} />
+                        <span style={{ marginLeft: 8 }}>/ {s.max_marks}</span>
+                        <Button size="small" sx={{ ml: 1 }} disabled={savingSubmissionId === s.id} onClick={() => handleSaveMarks(s.id)}>{savingSubmissionId === s.id ? <CircularProgress size={18} /> : 'Save'}</Button>
+                      </TableCell>
+                      <TableCell>
+                        {s.has_pdf && <Button size="small" startIcon={<GetAppIcon />} onClick={() => handleDownloadSubmission(s.id)}>Download PDF</Button>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, pt: 2 }}>
+          <Button onClick={() => setSubmissionsDialog((p) => ({ ...p, open: false }))}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 0 } }}>
         <DialogTitle sx={{ color: THEME.textDark, borderBottom: `1px solid ${THEME.primaryBorder}`, pb: 2 }}>{editingAssessment ? 'Edit Assessment' : 'Add New Assessment'}</DialogTitle>
         <DialogContent>
@@ -236,7 +393,7 @@ const AssessmentManagement: React.FC = () => {
               select
               label="Assessment Type"
               value={formData.assessment_type}
-              onChange={(e) => setFormData({ ...formData, assessment_type: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, assessment_type: e.target.value as 'EXAM' | 'QUIZ' | 'ASSIGNMENT' })}
               fullWidth
             >
               <MenuItem value="EXAM">Exam</MenuItem>
@@ -281,14 +438,13 @@ const AssessmentManagement: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>{snackbar.message}</Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
     </Box>
   )
 }

@@ -14,13 +14,13 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Snackbar,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   OutlinedInput,
 } from '@mui/material'
+import CenteredMessage from '../../components/CenteredMessage'
 import { Add, Edit, Delete, People } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import { AdminCourse, addCourse, updateCourse, deleteCourse, getCourses, getTeachers } from '../../lib/api'
@@ -87,16 +87,13 @@ const CourseManagement: React.FC = () => {
 
   return (
     <Box>
-      <Snackbar
+      <CenteredMessage
         open={snackbar.open}
-        autoHideDuration={6000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        autoHideDuration={6000}
+      />
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
