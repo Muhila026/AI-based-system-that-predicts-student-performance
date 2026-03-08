@@ -9,7 +9,6 @@ import {
   Box,
   Typography,
   Divider,
-  Avatar,
 } from '@mui/material'
 import {
   Dashboard as DashboardIcon,
@@ -79,9 +78,12 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectP
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         >
-          <Avatar sx={{ width: 80, height: 80, bgcolor: 'rgba(255, 255, 255, 0.2)', fontSize: '2rem' }}>
-            👨‍🏫
-          </Avatar>
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="Cloud Campus"
+            sx={{ width: 96, height: 96, objectFit: 'contain' }}
+          />
         </motion.div>
         <Box textAlign="center">
           <Typography variant="h6" fontWeight="bold">

@@ -7,7 +7,7 @@ settings = get_settings()
 
 # Default admin (created on first run if not exists)
 DEFAULT_ADMIN_EMAIL = "cloudcampus2002@gmail.com"
-DEFAULT_ADMIN_PASSWORD = "Muhila@2002"
+DEFAULT_ADMIN_PASSWORD = "Cloud@2002"
 
 client: AsyncIOMotorClient = None
 db = None

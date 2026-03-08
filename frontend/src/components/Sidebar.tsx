@@ -9,7 +9,6 @@ import {
   Box,
   Typography,
   Divider,
-  Avatar,
 } from '@mui/material'
 import {
   Dashboard as DashboardIcon,
@@ -84,19 +83,15 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedPage, onSelectPage }) => {
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         >
-          <Avatar
-            sx={{
-              width: 80,
-              height: 80,
-              bgcolor: 'rgba(255, 255, 255, 0.2)',
-              fontSize: '2rem',
-            }}
-          >
-            👨‍🎓
-          </Avatar>
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="Cloud Campus"
+            sx={{ width: 96, height: 96, objectFit: 'contain' }}
+          />
         </motion.div>
         <Box textAlign="center">
-          <Typography variant="h6" fontWeight="bold">
+          <Typography variant="h6" fontWeight="600" sx={{ fontFamily: "'Poppins', sans-serif" }}>
             Cloud Campus
           </Typography>
           <Typography variant="caption" sx={{ opacity: 0.8 }}>
@@ -161,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedPage, onSelectPage }) => {
 
       {/* Footer */}
       <Box sx={{ mt: 'auto', p: 2, textAlign: 'center' }}>
-        <Typography variant="caption" sx={{ opacity: 0.6 }}>
+        <Typography variant="caption" sx={{ opacity: 0.6, fontFamily: "'Poppins', sans-serif" }}>
           © 2025 Cloud Campus
         </Typography>
       </Box>

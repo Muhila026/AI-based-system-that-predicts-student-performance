@@ -47,6 +47,7 @@ import AdminProfile from './pages/admin/Profile'
 
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
+import VerifyOtp from './pages/VerifyOtp'
 import ResetPassword from './pages/ResetPassword'
 import { decodeJwtPayload } from './lib/api'
 
@@ -68,8 +69,10 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [userRole, setUserRole] = useState<string>('')
   const [selectedPage, setSelectedPage] = useState<string>('Dashboard')
-  const [authPage, setAuthPage] = useState<'login' | 'forgot-password' | 'reset-password'>('login')
+  const [authPage, setAuthPage] = useState<'login' | 'forgot-password' | 'verify-otp' | 'reset-password'>('login')
   const [resetPasswordEmail, setResetPasswordEmail] = useState<string>('')
+  const [resetTokenForPassword, setResetTokenForPassword] = useState<string | null>(null)
+  const [forgotPasswordInitialEmail, setForgotPasswordInitialEmail] = useState<string>('')
   const [openAddUserDialogOnce, setOpenAddUserDialogOnce] = useState<boolean>(false)
 
   useEffect(() => {
@@ -244,27 +247,70 @@ const App: React.FC = () => {
     if (authPage === 'forgot-password') {
       return (
         <ForgotPassword
-          onBack={() => setAuthPage('login')}
+          initialEmail={forgotPasswordInitialEmail}
+          onBack={() => {
+            setForgotPasswordInitialEmail('')
+            setAuthPage('login')
+          }}
           onSuccess={(email: string) => {
             setResetPasswordEmail(email)
+            setAuthPage('verify-otp')
+          }}
+        />
+      )
+    }
+    if (authPage === 'verify-otp') {
+      return (
+        <VerifyOtp
+          email={resetPasswordEmail}
+          onBack={() => setAuthPage('forgot-password')}
+          onSuccess={(email: string, resetToken: string) => {
+            setResetPasswordEmail(email)
+            setResetTokenForPassword(resetToken)
             setAuthPage('reset-password')
           }}
         />
       )
     }
     if (authPage === 'reset-password') {
+      if (resetTokenForPassword && resetPasswordEmail) {
+        return (
+          <ResetPassword
+            email={resetPasswordEmail}
+            resetToken={resetTokenForPassword}
+            onBack={() => {
+              setResetTokenForPassword(null)
+              setAuthPage('verify-otp')
+            }}
+            onSuccess={() => {
+              setAuthPage('login')
+              setResetPasswordEmail('')
+              setResetTokenForPassword(null)
+            }}
+          />
+        )
+      }
       return (
-        <ResetPassword
-          email={resetPasswordEmail}
+        <VerifyOtp
+          email={resetPasswordEmail || ''}
           onBack={() => setAuthPage('forgot-password')}
-          onSuccess={() => {
-            setAuthPage('login')
-            setResetPasswordEmail('')
+          onSuccess={(email: string, resetToken: string) => {
+            setResetPasswordEmail(email)
+            setResetTokenForPassword(resetToken)
+            setAuthPage('reset-password')
           }}
         />
       )
     }
-    return <Login onLogin={handleLogin} onForgotPassword={() => setAuthPage('forgot-password')} />
+    return (
+      <Login
+        onLogin={handleLogin}
+        onForgotPassword={(email) => {
+          setForgotPasswordInitialEmail(email ?? '')
+          setAuthPage('forgot-password')
+        }}
+      />
+    )
   }
 
   const renderPortal = () => {
