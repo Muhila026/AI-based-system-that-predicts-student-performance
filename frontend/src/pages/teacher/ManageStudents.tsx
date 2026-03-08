@@ -179,113 +179,77 @@ const ManageStudents: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Student Details Dialog */}
-      <Dialog open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
+      <Dialog open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ pb: 0 }}>
           <Box display="flex" alignItems="center" gap={2}>
-            <Avatar sx={{ bgcolor: THEME.primary, width: 48, height: 48 }}>
+            <Avatar sx={{ bgcolor: THEME.primary, width: 40, height: 40 }}>
               {selectedStudentEmail && selectedStudentEmail.charAt(0).toUpperCase()}
             </Avatar>
-            <Box>
-              <Typography variant="h6" fontWeight="bold">
-                Student Details
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {selectedStudentEmail}
-              </Typography>
-            </Box>
+            <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
+              Student details
+            </Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
           {loadingDetails ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-              <CircularProgress />
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="160px">
+              <CircularProgress sx={{ color: THEME.primary }} />
             </Box>
           ) : studentDetails ? (
-            <Box display="grid" gap={3} mt={2}>
-              <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} gap={2}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <Email color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Email</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.email}</Typography>
-                  </CardContent>
-                </Card>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <School color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Student ID</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.studentId || 'Not set'}</Typography>
-                  </CardContent>
-                </Card>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <School color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Batch</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.batch || 'Not set'}</Typography>
-                  </CardContent>
-                </Card>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <School color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Program</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.program || 'Not set'}</Typography>
-                  </CardContent>
-                </Card>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <School color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Current Semester</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.currentSemester || 'Not set'}</Typography>
-                  </CardContent>
-                </Card>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={2} mb={1}>
-                      <Phone color="primary" />
-                      <Typography variant="subtitle2" fontWeight="bold">Contact Number</Typography>
-                    </Box>
-                    <Typography variant="body2">{studentDetails.contactNumber || 'Not set'}</Typography>
-                  </CardContent>
-                </Card>
+            <Box component="dl" sx={{ m: 0, mt: 2, '& > div': { display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25, borderBottom: `1px solid ${THEME.primaryBorder}` } }}>
+              <Box>
+                <Email sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Email</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{studentDetails.email}</Typography>
+                </Box>
               </Box>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box display="flex" alignItems="center" gap={2} mb={1}>
-                    <Person color="primary" />
-                    <Typography variant="subtitle2" fontWeight="bold">Guardian Name</Typography>
-                  </Box>
-                  <Typography variant="body2">{studentDetails.guardianName || 'Not set'}</Typography>
-                </CardContent>
-              </Card>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box display="flex" alignItems="center" gap={2} mb={1}>
-                    <Home color="primary" />
-                    <Typography variant="subtitle2" fontWeight="bold">Address</Typography>
-                  </Box>
-                  <Typography variant="body2">{studentDetails.address || 'Not set'}</Typography>
-                </CardContent>
-              </Card>
+              <Box>
+                <School sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Student ID</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{studentDetails.studentId || '—'}</Typography>
+                </Box>
+              </Box>
+              <Box>
+                <School sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Batch / Program</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{[studentDetails.batch, studentDetails.program].filter(Boolean).join(' · ') || '—'}</Typography>
+                </Box>
+              </Box>
+              <Box>
+                <Phone sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Contact</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{studentDetails.contactNumber || '—'}</Typography>
+                </Box>
+              </Box>
+              <Box>
+                <Person sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Guardian</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{studentDetails.guardianName || '—'}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ borderBottom: 'none' }}>
+                <Home sx={{ color: THEME.muted, fontSize: 20 }} />
+                <Box>
+                  <Typography component="dt" variant="caption" sx={{ color: THEME.muted, display: 'block' }}>Address</Typography>
+                  <Typography component="dd" variant="body2" sx={{ color: THEME.textDark }}>{studentDetails.address || '—'}</Typography>
+                </Box>
+              </Box>
             </Box>
           ) : (
-            <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
-              No details available for this student
+            <Typography variant="body2" sx={{ color: THEME.muted }} textAlign="center" py={4}>
+              No details available
             </Typography>
           )}
         </DialogContent>
-        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}` }}>
-          <Button onClick={() => setDetailsDialogOpen(false)} sx={{ color: THEME.muted }}>Close</Button>
+        <DialogActions sx={{ borderTop: `1px solid ${THEME.primaryBorder}`, px: 2.5, py: 2 }}>
+          <Button onClick={() => setDetailsDialogOpen(false)} variant="outlined" size="small" sx={{ borderRadius: 0, textTransform: 'none' }}>
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
