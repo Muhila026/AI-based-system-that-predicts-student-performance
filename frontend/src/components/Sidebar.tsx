@@ -107,13 +107,6 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedPage, onSelectPage }) => {
           Cloud Campus
         </Typography>
       </Box>
-      <Typography
-        variant="caption"
-        sx={{ px: 2, color: SIDEBAR.textDark, display: 'block', mb: 2, fontWeight: 500, flexShrink: 0 }}
-      >
-        Software Engineering
-      </Typography>
-
       <Divider sx={{ borderColor: '#E5E7EB', mx: 2, flexShrink: 0 }} />
 
       <List sx={{ px: 1.5, py: 2, flex: 1, overflow: 'auto', minHeight: 0 }}>

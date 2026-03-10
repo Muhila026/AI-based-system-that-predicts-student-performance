@@ -32,7 +32,16 @@ const theme = createTheme({
     h6: { fontWeight: 600 },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 0,
+  },
+  components: {
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 0,
+        },
+      },
+    },
   },
 })
 

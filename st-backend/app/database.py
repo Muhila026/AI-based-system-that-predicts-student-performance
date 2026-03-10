@@ -36,6 +36,8 @@ COLLECTIONS = [
     "student_participation",
     "assignment_submissions",
     "attendance_daily",
+    # Per-subject attendance (max ~10 sessions per subject)
+    "module_attendance",
     "assessments",
     "roles",
     # Schema: subjects, student_subjects, teacher_subjects, student marks, predictions

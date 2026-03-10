@@ -765,6 +765,7 @@ class SubjectCreate(BaseModel):
 class SubjectResponse(BaseModel):
     _id: str
     subject_name: str
+    attendance_days: Optional[int] = None
 
 
 class StudentSubjectCreate(BaseModel):

@@ -20,9 +20,9 @@ import TeacherDashboard from './pages/teacher/Dashboard'
 import StudentPerformance from './pages/teacher/StudentPerformance'
 import TeacherModules from './pages/teacher/Modules'
 import TeacherAssessments from './pages/teacher/Assessments'
-import StudentResults from './pages/teacher/StudentResults'
 import TeacherChat from './pages/teacher/Chat'
 import UploadAttendance from './pages/teacher/UploadAttendance'
+import AttendanceSummary from './pages/teacher/AttendanceSummary'
 import ParticipationRating from './pages/teacher/ParticipationRating'
 import ManageStudents from './pages/teacher/ManageStudents'
 import StudyResources from './pages/teacher/StudyResources'
@@ -248,8 +248,6 @@ const App: React.FC = () => {
         return <TeacherModules />
       case 'Assessments':
         return <TeacherAssessments />
-      case 'Student Results':
-        return <StudentResults />
       case 'Attendance':
         return <UploadAttendance />
       case 'Participation':

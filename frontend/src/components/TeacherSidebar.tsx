@@ -23,7 +23,6 @@ import {
   EventNote as EventNoteIcon,
   Groups as GroupsIcon,
   MenuBook as MenuBookIcon,
-  Grade as GradeIcon,
   ThumbUp as ThumbUpIcon,
   SmartToy as SmartToyIcon,
 } from '@mui/icons-material'
@@ -56,7 +55,6 @@ const menuItems: MenuItem[] = [
   { text: 'Student Performance', icon: <AssessmentIcon />, tooltip: 'View student performance' },
   { text: 'Subjects', icon: <MenuBookIcon />, tooltip: 'My subjects' },
   { text: 'Assessments', icon: <AssignmentIcon />, tooltip: 'Exams, quizzes and assessments' },
-  { text: 'Student Results', icon: <GradeIcon />, tooltip: 'Student grades and results' },
   { text: 'Attendance', icon: <EventNoteIcon />, tooltip: 'Mark and view attendance' },
   { text: 'Participation', icon: <ThumbUpIcon />, tooltip: 'Participation ratings' },
   { text: 'Manage Students', icon: <GroupsIcon />, tooltip: 'Student list and management' },
@@ -127,39 +125,39 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectP
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.03 }}
             >
-                <ListItem disablePadding sx={{ mb: 0.25 }}>
-                  <Tooltip title={item.tooltip || item.text} placement="right" arrow>
-                    <ListItemButton
-                      selected={isSelected}
-                      onClick={() => onSelectPage(item.text)}
-                  sx={{
-                    borderRadius: 0,
-                    borderLeft: isSelected ? `4px solid ${SIDEBAR.primary}` : '4px solid transparent',
-                    pl: isSelected ? 1.5 : 2,
-                    py: 1.25,
-                    '&.Mui-selected': {
-                      backgroundColor: SIDEBAR.primaryLight,
-                      '&:hover': { backgroundColor: '#DBEAFE' },
-                    },
-                    '&:hover': { backgroundColor: '#F9FAFB' },
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <ListItemIcon sx={{ color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark, minWidth: 40 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: '0.9rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark,
+              <ListItem disablePadding sx={{ mb: 0.25 }}>
+                <Tooltip title={item.tooltip || item.text} placement="right" arrow>
+                  <ListItemButton
+                    selected={isSelected}
+                    onClick={() => onSelectPage(item.text)}
+                    sx={{
+                      borderRadius: 0,
+                      borderLeft: isSelected ? `4px solid ${SIDEBAR.primary}` : '4px solid transparent',
+                      pl: isSelected ? 1.5 : 2,
+                      py: 1.25,
+                      '&.Mui-selected': {
+                        backgroundColor: SIDEBAR.primaryLight,
+                        '&:hover': { backgroundColor: '#DBEAFE' },
+                      },
+                      '&:hover': { backgroundColor: '#F9FAFB' },
+                      transition: 'all 0.2s ease',
                     }}
+                  >
+                    <ListItemIcon sx={{ color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark, minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.text}
+                      primaryTypographyProps={{
+                        fontSize: '0.9rem',
+                        fontWeight: isSelected ? 600 : 500,
+                        color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark,
+                      }}
                     />
-                    </ListItemButton>
-                  </Tooltip>
-                </ListItem>
-              </motion.div>
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            </motion.div>
           )
         })}
       </List>

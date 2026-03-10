@@ -39,10 +39,8 @@ import {
   deleteSchemaTeacherSubject,
   getSchemaStudentSubjectMarks,
   createOrUpdateSchemaStudentSubjectMarks,
-  deleteSchemaStudentSubjectMarks,
   getSchemaPredictions,
   createOrUpdateSchemaPrediction,
-  deleteSchemaPrediction,
   getSchemaAssignments,
   createSchemaAssignment,
   updateSchemaAssignment,
@@ -68,24 +66,36 @@ const THEME = {
   textDark: '#1f2937',
 }
 
-type TabValue = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'predictions'
+const generateId = (prefix: string): string => {
+  const num = Math.floor(1000 + Math.random() * 9000)
+  return `${prefix}${num}`
+}
+
+type TabValue =
+  | 'subjects'
+  | 'student_subjects'
+  | 'teacher_subjects'
+  | 'assignments'
+  | 'attendance'
+  | 'predictions'
 
 const SchemaManagement: React.FC = () => {
   const [tab, setTab] = useState<TabValue>('subjects')
   const [subjects, setSubjects] = useState<SchemaSubject[]>([])
   const [studentSubjects, setStudentSubjects] = useState<SchemaStudentSubject[]>([])
   const [teacherSubjects, setTeacherSubjects] = useState<SchemaTeacherSubject[]>([])
-  const [marks, setMarks] = useState<SchemaStudentSubjectMarks[]>([])
-  const [predictions, setPredictions] = useState<SchemaPrediction[]>([])
+  const [, setMarks] = useState<SchemaStudentSubjectMarks[]>([])
+  const [, setPredictions] = useState<SchemaPrediction[]>([])
   const [assignments, setAssignments] = useState<SchemaSubjectAssignment[]>([])
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([])
   const [teacherStudentPerf, setTeacherStudentPerf] = useState<TeacherStudentPerformanceItem[]>([])
-  type SearchKey = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'predictions'
+  type SearchKey = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'attendance' | 'predictions'
   const [searchQueries, setSearchQueries] = useState<Record<SearchKey, string>>({
     subjects: '',
     student_subjects: '',
     teacher_subjects: '',
     assignments: '',
+    attendance: '',
     predictions: '',
   })
   const [loading, setLoading] = useState(true)
@@ -93,6 +103,12 @@ const SchemaManagement: React.FC = () => {
   const [openSubjectDialog, setOpenSubjectDialog] = useState(false)
   const [editSubjectId, setEditSubjectId] = useState<string | null>(null)
   const [subjectForm, setSubjectForm] = useState({ id: '', subject_name: '' })
+
+  const [openAttendanceDaysDialog, setOpenAttendanceDaysDialog] = useState(false)
+  const [attendanceDaysForm, setAttendanceDaysForm] = useState<{ subject_id: string; days: number }>({
+    subject_id: '',
+    days: 0,
+  })
 
   const [openStudentSubDialog, setOpenStudentSubDialog] = useState(false)
   const [editStudentSubId, setEditStudentSubId] = useState<string | null>(null)
@@ -179,19 +195,33 @@ const SchemaManagement: React.FC = () => {
     }
   }
 
+  const handleSaveAttendanceDays = async () => {
+    try {
+      if (!attendanceDaysForm.subject_id || attendanceDaysForm.days <= 0) {
+        alert('Select a subject and enter days greater than 0')
+        return
+      }
+      await updateSchemaSubject(attendanceDaysForm.subject_id, { attendance_days: attendanceDaysForm.days })
+      setOpenAttendanceDaysDialog(false)
+      loadAll()
+    } catch (e: any) {
+      alert(e?.message || 'Failed to save attendance days')
+    }
+  }
+
   const handleAddStudentSub = async () => {
     try {
       if (editStudentSubId) {
         await deleteSchemaStudentSubject(editStudentSubId)
         await createSchemaStudentSubject({
-          id: 'SS-' + Date.now(),
+          id: generateId('SS'),
           student_id: studentSubForm.student_id,
           subject_id: studentSubForm.subject_id,
         })
         setEditStudentSubId(null)
       } else {
         await createSchemaStudentSubject({
-          id: (studentSubForm.id || 'SS-' + Date.now()).trim(),
+          id: (studentSubForm.id || generateId('SS')).trim(),
           student_id: studentSubForm.student_id.trim(),
           subject_id: studentSubForm.subject_id.trim(),
         })
@@ -219,14 +249,14 @@ const SchemaManagement: React.FC = () => {
       if (editTeacherSubId) {
         await deleteSchemaTeacherSubject(editTeacherSubId)
         await createSchemaTeacherSubject({
-          id: 'TS-' + Date.now(),
+          id: generateId('TS'),
           teacher_id: teacherSubForm.teacher_id,
           subject_id: teacherSubForm.subject_id,
         })
         setEditTeacherSubId(null)
       } else {
         await createSchemaTeacherSubject({
-          id: (teacherSubForm.id || 'TS-' + Date.now()).trim(),
+          id: (teacherSubForm.id || generateId('TS')).trim(),
           teacher_id: teacherSubForm.teacher_id.trim(),
           subject_id: teacherSubForm.subject_id.trim(),
         })
@@ -251,7 +281,11 @@ const SchemaManagement: React.FC = () => {
 
   const handleSaveMarks = async () => {
     try {
-      await createOrUpdateSchemaStudentSubjectMarks(marksForm)
+      const formWithId = {
+        ...marksForm,
+        id: marksForm.id || generateId('MK'),
+      }
+      await createOrUpdateSchemaStudentSubjectMarks(formWithId)
       setOpenMarksDialog(false)
       setMarksForm({ id: '', student_id: '', subject_id: '', assignment: 0, quiz: 0, mid_exam: 0, attendance: 0 })
       loadAll()
@@ -260,15 +294,6 @@ const SchemaManagement: React.FC = () => {
     }
   }
 
-  const handleDeleteMarks = async (id: string) => {
-    if (!window.confirm('Delete this marks record?')) return
-    try {
-      await deleteSchemaStudentSubjectMarks(id)
-      loadAll()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    }
-  }
 
   const handleSavePred = async () => {
     try {
@@ -281,15 +306,6 @@ const SchemaManagement: React.FC = () => {
     }
   }
 
-  const handleDeletePred = async (studentId: string, subjectId: string) => {
-    if (!window.confirm('Delete this prediction?')) return
-    try {
-      await deleteSchemaPrediction(studentId, subjectId)
-      loadAll()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    }
-  }
 
   const handleSaveAssignment = async () => {
     try {
@@ -365,6 +381,10 @@ const SchemaManagement: React.FC = () => {
     `${s.name} ${s.email}`.toLowerCase().includes(searchQueries.predictions.toLowerCase())
   )
 
+  const filteredPerfForAttendance = teacherStudentPerf.filter((s) =>
+    `${s.name} ${s.email}`.toLowerCase().includes(searchQueries.attendance.toLowerCase())
+  )
+
   return (
     <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
       <Box sx={{ pb: 2, borderBottom: `1px solid ${THEME.primaryBorder}`, mb: 2 }}>
@@ -381,6 +401,7 @@ const SchemaManagement: React.FC = () => {
         <Tab label="Student Subjects" value="student_subjects" />
         <Tab label="Teacher Subjects" value="teacher_subjects" />
         <Tab label="Subject Assignments" value="assignments" />
+        <Tab label="Attendance" value="attendance" />
         <Tab label="Predictions" value="predictions" />
       </Tabs>
 
@@ -395,19 +416,36 @@ const SchemaManagement: React.FC = () => {
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography fontWeight="600">Institute subjects</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={() => {
-                      setEditSubjectId(null)
-                      setSubjectForm({ id: '', subject_name: '' })
-                      setOpenSubjectDialog(true)
-                    }}
-                    sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
-                  >
-                    Add Subject
-                  </Button>
+                  <Box display="flex" gap={1}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        const first = subjects[0]
+                        setAttendanceDaysForm({
+                          subject_id: first?._id || '',
+                          days: first?.attendance_days ?? 10,
+                        })
+                        setOpenAttendanceDaysDialog(true)
+                      }}
+                      sx={{ borderRadius: 0, textTransform: 'none' }}
+                    >
+                      Assign Days
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => {
+                        setEditSubjectId(null)
+                        setSubjectForm({ id: generateId('SB'), subject_name: '' })
+                        setOpenSubjectDialog(true)
+                      }}
+                      sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
+                    >
+                      Add Subject
+                    </Button>
+                  </Box>
                 </Box>
                 <Box mb={2}>
                   <TextField
@@ -426,6 +464,7 @@ const SchemaManagement: React.FC = () => {
                       <TableRow sx={{ bgcolor: THEME.primaryLight }}>
                         <TableCell sx={{ fontWeight: 600 }}>ID</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Subject / Course Name</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Attendance Days</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
@@ -434,6 +473,7 @@ const SchemaManagement: React.FC = () => {
                         <TableRow key={s._id}>
                           <TableCell>{s._id}</TableCell>
                           <TableCell>{s.subject_name}</TableCell>
+                          <TableCell>{s.attendance_days ?? '—'}</TableCell>
                           <TableCell align="right">
                             <IconButton
                               size="small"
@@ -472,7 +512,7 @@ const SchemaManagement: React.FC = () => {
                     startIcon={<Add />}
                     onClick={() => {
                       setEditStudentSubId(null)
-                      setStudentSubForm({ id: '', student_id: '', subject_id: '' })
+                      setStudentSubForm({ id: generateId('SS'), student_id: '', subject_id: '' })
                       setOpenStudentSubDialog(true)
                     }}
                     sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
@@ -545,7 +585,7 @@ const SchemaManagement: React.FC = () => {
                     startIcon={<Add />}
                     onClick={() => {
                       setEditTeacherSubId(null)
-                      setTeacherSubForm({ id: '', teacher_id: '', subject_id: '' })
+                      setTeacherSubForm({ id: generateId('TS'), teacher_id: '', subject_id: '' })
                       setOpenTeacherSubDialog(true)
                     }}
                     sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
@@ -610,22 +650,8 @@ const SchemaManagement: React.FC = () => {
           {tab === 'assignments' && (
             <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
               <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Box display="flex" justifyContent="flex-start" alignItems="center" mb={2}>
                   <Typography fontWeight="600">Subject assignments (created by subject teacher; students in that subject get them)</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={() => {
-                      setEditAssignmentId(null)
-                      setAssignmentForm({ subject_id: '', title: '', description: '', max_marks: 100, assignment_type: 'ASSIGNMENT' })
-                      setAssignmentPdfFile(null)
-                      setOpenAssignmentDialog(true)
-                    }}
-                    sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
-                  >
-                    Add Assignment
-                  </Button>
                 </Box>
                 <Box mb={2}>
                   <TextField
@@ -713,6 +739,70 @@ const SchemaManagement: React.FC = () => {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === 'attendance' && (
+            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography fontWeight="600">Attendance overview (per student)</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ color: THEME.muted, mb: 1.5 }}>
+                  View each student&apos;s overall attendance percentage based on uploaded attendance records.
+                </Typography>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search by student name or email..."
+                    value={searchQueries.attendance}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({
+                        ...prev,
+                        attendance: e.target.value,
+                      }))
+                    }
+                  />
+                </Box>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: THEME.primaryLight }}>
+                        <TableCell sx={{ fontWeight: 600 }}>Student</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Attendance</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredPerfForAttendance.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2}>
+                            <Typography variant="body2" sx={{ color: THEME.muted }}>
+                              No attendance data available yet.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPerfForAttendance.map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.textDark }}>
+                                {s.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: THEME.muted }}>
+                                {s.email}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {s.attendance != null ? `${s.attendance}%` : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -820,8 +910,9 @@ const SchemaManagement: React.FC = () => {
             label="Subject ID"
             value={subjectForm.id}
             onChange={(e) => setSubjectForm((f) => ({ ...f, id: e.target.value }))}
-            disabled={!!editSubjectId}
+            disabled
             margin="dense"
+            placeholder="e.g. SB1234"
           />
           <TextField
             fullWidth
@@ -835,6 +926,52 @@ const SchemaManagement: React.FC = () => {
           <Button onClick={() => setOpenSubjectDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleAddSubject} disabled={!subjectForm.id || !subjectForm.subject_name}>
             {editSubjectId ? 'Save' : 'Add'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign attendance days dialog */}
+      <Dialog open={openAttendanceDaysDialog} onClose={() => setOpenAttendanceDaysDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Assign Attendance Days</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Subject</InputLabel>
+            <Select
+              value={attendanceDaysForm.subject_id}
+              label="Subject"
+              onChange={(e) =>
+                setAttendanceDaysForm((f) => ({
+                  ...f,
+                  subject_id: e.target.value as string,
+                }))
+              }
+            >
+              {subjects.map((s) => (
+                <MenuItem key={s._id} value={s._id}>
+                  {s.subject_name} ({s._id})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            margin="dense"
+            type="number"
+            label="Total attendance days for this subject"
+            value={attendanceDaysForm.days}
+            onChange={(e) =>
+              setAttendanceDaysForm((f) => ({
+                ...f,
+                days: Number(e.target.value) || 0,
+              }))
+            }
+            inputProps={{ min: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAttendanceDaysDialog(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveAttendanceDays} disabled={!attendanceDaysForm.subject_id || attendanceDaysForm.days <= 0}>
+            Save
           </Button>
         </DialogActions>
       </Dialog>
@@ -922,7 +1059,15 @@ const SchemaManagement: React.FC = () => {
       <Dialog open={openStudentSubDialog} onClose={() => { setOpenStudentSubDialog(false); setEditStudentSubId(null) }} maxWidth="sm" fullWidth>
         <DialogTitle>{editStudentSubId ? 'Edit Student–Subject' : 'Add Student–Subject'}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth label="Record ID" value={studentSubForm.id} onChange={(e) => setStudentSubForm((f) => ({ ...f, id: e.target.value }))} margin="dense" placeholder="e.g. SS101" />
+          <TextField
+            fullWidth
+            label="Record ID"
+            value={studentSubForm.id}
+            onChange={(e) => setStudentSubForm((f) => ({ ...f, id: e.target.value }))}
+            margin="dense"
+            placeholder="e.g. SS1234"
+            disabled
+          />
           <FormControl fullWidth margin="dense">
             <InputLabel>Student</InputLabel>
             <Select
@@ -956,7 +1101,15 @@ const SchemaManagement: React.FC = () => {
       <Dialog open={openTeacherSubDialog} onClose={() => { setOpenTeacherSubDialog(false); setEditTeacherSubId(null) }} maxWidth="sm" fullWidth>
         <DialogTitle>{editTeacherSubId ? 'Edit Teacher–Subject' : 'Add Teacher–Subject'}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth label="Record ID" value={teacherSubForm.id} onChange={(e) => setTeacherSubForm((f) => ({ ...f, id: e.target.value }))} margin="dense" placeholder="e.g. TS101" />
+          <TextField
+            fullWidth
+            label="Record ID"
+            value={teacherSubForm.id}
+            onChange={(e) => setTeacherSubForm((f) => ({ ...f, id: e.target.value }))}
+            margin="dense"
+            placeholder="e.g. TS1234"
+            disabled
+          />
           <FormControl fullWidth margin="dense">
             <InputLabel>Teacher</InputLabel>
             <Select value={teacherSubForm.teacher_id} label="Teacher" onChange={(e) => setTeacherSubForm((f) => ({ ...f, teacher_id: e.target.value }))}>
@@ -986,7 +1139,15 @@ const SchemaManagement: React.FC = () => {
       <Dialog open={openMarksDialog} onClose={() => setOpenMarksDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Add / Edit Marks</DialogTitle>
         <DialogContent>
-          <TextField fullWidth label="Record ID" value={marksForm.id} onChange={(e) => setMarksForm((f) => ({ ...f, id: e.target.value }))} margin="dense" />
+          <TextField
+            fullWidth
+            label="Record ID"
+            value={marksForm.id}
+            onChange={(e) => setMarksForm((f) => ({ ...f, id: e.target.value }))}
+            margin="dense"
+            placeholder="e.g. MK1234"
+            disabled
+          />
           <FormControl fullWidth margin="dense">
             <InputLabel>Student</InputLabel>
             <Select value={marksForm.student_id} label="Student" onChange={(e) => setMarksForm((f) => ({ ...f, student_id: e.target.value }))}>

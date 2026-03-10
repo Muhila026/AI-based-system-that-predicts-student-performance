@@ -360,7 +360,7 @@ const ChatbotSupport: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [copied, setCopied] = useState<number | null>(null)
+  const [, setCopied] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 

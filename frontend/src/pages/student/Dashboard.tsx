@@ -149,31 +149,45 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
   const stats = useMemo(() => {
     if (!metrics) return []
 
+    const formatPercent = (value: number | undefined | null): string => {
+      if (value == null || Number.isNaN(value)) return '0%'
+      const fixed = Number(value).toFixed(2)
+      const trimmed = fixed.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+      return `${trimmed}%`
+    }
+
+    const formatHours = (hours: number | undefined | null): string => {
+      if (hours == null || Number.isNaN(hours)) return '0 h'
+      const fixed = Number(hours).toFixed(2)
+      const trimmed = fixed.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+      return `${trimmed} h`
+    }
+
     return [
       {
         title: 'Total Score',
-        value: `${metrics.total_score}%`,
+        value: formatPercent(metrics.total_score),
         change: `Grade: ${metrics.grade}`,
         icon: <GradeIcon />,
         color: '#10b981',
       },
       {
         title: 'Study Hours',
-        value: `${metrics.study_hours}h`,
-        change: 'Last 7 days (from login–logout time)',
+        value: formatHours(metrics.study_hours),
+        change: 'Last 7 days',
         icon: <Timer />,
         color: '#f59e0b',
       },
       {
         title: 'Attendance',
-        value: `${metrics.attendance_percentage}%`,
+        value: formatPercent(metrics.attendance_percentage),
         change: 'Last 30 days',
         icon: <CheckCircle />,
         color: '#3b82f6',
       },
       {
         title: 'Class Participation',
-        value: `${metrics.class_participation}%`,
+        value: formatPercent(metrics.class_participation),
         change: 'Active engagement',
         icon: <People />,
         color: '#8b5cf6',
@@ -349,68 +363,11 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
           gap: 2.5,
           mb: 4,
         }}
       >
-        {/* Study hours card */}
-        <Card
-          elevation={0}
-          sx={{
-            border: `1px solid ${THEME.primaryBorder}`,
-            borderRadius: 0,
-            backgroundColor: '#fff',
-            overflow: 'hidden',
-          }}
-        >
-          <CardContent sx={{ py: 2.5, px: 2.5 }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Box
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 0,
-                  backgroundColor: '#fef3c7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#f59e0b',
-                }}
-              >
-                <Timer />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight="700" sx={{ color: THEME.textDark }}>
-                  Study Hours
-                </Typography>
-                <Typography variant="body2" sx={{ color: THEME.muted }}>
-                  From login–logout time (last 7 days)
-                </Typography>
-              </Box>
-            </Box>
-            {loading ? (
-              <CircularProgress size={24} sx={{ color: THEME.primary }} />
-            ) : (
-              <>
-                <Typography variant="h4" fontWeight="700" sx={{ color: '#f59e0b', mb: 1 }}>
-                  {metrics ? `${metrics.study_hours}h` : '—'}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={metrics ? Math.min(100, (metrics.study_hours / STUDY_HOURS_GOAL) * 100) : 0}
-                  sx={{
-                    height: 8,
-                    borderRadius: 0,
-                    backgroundColor: THEME.primaryBorder,
-                    '& .MuiLinearProgress-bar': { backgroundColor: '#f59e0b', borderRadius: 0 },
-                  }}
-                />
-              </>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Predicted grade card (middle) */}
         {predictedGradeInfo && (
           <Card

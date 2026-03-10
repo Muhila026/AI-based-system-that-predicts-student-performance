@@ -35,14 +35,15 @@ SUBMISSION_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ---------- Subjects ----------
 @router.get("/subjects")
 async def list_subjects(user: dict = Depends(require_role(["admin", "teacher", "student"]))):
-    """List all subjects (subject/course name only)."""
+    """List all subjects (subject/course name + optional attendance_days)."""
     db = get_database()
-    cursor = db.subjects.find({}, {"_id": 1, "subject_name": 1})
+    cursor = db.subjects.find({}, {"_id": 1, "subject_name": 1, "attendance_days": 1})
     items = []
     async for doc in cursor:
         items.append({
             "_id": doc.get("_id"),
             "subject_name": doc.get("subject_name"),
+            "attendance_days": doc.get("attendance_days"),
         })
     return items
 
@@ -73,7 +74,8 @@ async def update_subject(
 ):
     """Update subject (admin only)."""
     db = get_database()
-    updates = {k: v for k, v in body.items() if k in ("subject_name",)}
+    # Allow updating subject_name and attendance_days (planned total attendance days for the subject).
+    updates = {k: v for k, v in body.items() if k in ("subject_name", "attendance_days")}
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields to update")
     result = await db.subjects.update_one({"_id": subject_id}, {"$set": updates})

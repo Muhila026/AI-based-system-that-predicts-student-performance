@@ -43,7 +43,7 @@ const CenteredMessage: React.FC<CenteredMessageProps> = ({
       onClose={onClose}
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          borderRadius: 0,
           minWidth: 320,
           maxWidth: 480,
           mx: 2,

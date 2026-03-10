@@ -435,7 +435,7 @@ export async function getMyAttendance(): Promise<AttendanceWithPercentage | null
   }
 }
 
-/** Teacher: list students with student_id for attendance upload. */
+/** Teacher: list students with student_id for (global) attendance upload (ML). */
 export type StudentListItem = { student_id: number; name: string; email: string }
 export async function getAttendanceStudentList(): Promise<StudentListItem[]> {
   try {
@@ -445,12 +445,64 @@ export async function getAttendanceStudentList(): Promise<StudentListItem[]> {
   }
 }
 
-/** Teacher: upload daily attendance (present_student_ids). */
+/** Teacher: upload daily attendance (global ML attendance_percentage, not per subject). */
 export async function uploadDailyAttendance(presentStudentIds: number[], date?: string): Promise<{ date: string; students_updated: number }> {
   return await apiRequest('/attendance/daily', {
     method: 'POST',
     body: JSON.stringify({ present_student_ids: presentStudentIds, date: date || undefined }),
   })
+}
+
+// ---------- Module attendance (per-subject, max 10 days) ----------
+
+export type ModuleAttendanceStudent = { email: string; name: string }
+
+export async function getModuleAttendanceStudents(subjectId: string): Promise<ModuleAttendanceStudent[]> {
+  try {
+    return await apiRequest<ModuleAttendanceStudent[]>(`/module-attendance/students/${encodeURIComponent(subjectId)}`)
+  } catch {
+    return []
+  }
+}
+
+export async function uploadModuleAttendance(
+  subjectId: string,
+  presentStudentEmails: string[],
+  date?: string
+): Promise<{ subject_id: string; date: string; students_updated: number }> {
+  return await apiRequest('/module-attendance/upload', {
+    method: 'POST',
+    body: JSON.stringify({
+      subject_id: subjectId,
+      present_student_emails: presentStudentEmails,
+      date: date || undefined,
+    }),
+  })
+}
+
+export type ModuleAttendanceSummaryStudent = {
+  email: string
+  name: string
+  present_days: number
+  total_sessions: number
+  attendance_percentage: number
+  dates: Record<string, boolean>
+}
+
+export type ModuleAttendanceSummary = {
+  subject_id: string
+  total_sessions: number
+   planned_sessions: number
+  dates: string[]
+  students: ModuleAttendanceSummaryStudent[]
+}
+
+export async function getModuleAttendanceSummary(subjectId: string): Promise<ModuleAttendanceSummary | null> {
+  try {
+    return await apiRequest<ModuleAttendanceSummary>(`/module-attendance/summary/${encodeURIComponent(subjectId)}`)
+  } catch {
+    return null
+  }
 }
 
 export type StudentTotalScore = {
@@ -916,7 +968,7 @@ export async function deleteRole(roleKey: string): Promise<{ message: string }> 
 }
 
 // ==================== Schema: Subjects, Student/Teacher Subjects, Marks, Predictions ====================
-export type SchemaSubject = { _id: string; subject_name: string }
+export type SchemaSubject = { _id: string; subject_name: string; attendance_days?: number | null }
 export type SchemaStudentSubject = { _id: string; student_id: string; subject_id: string }
 export type SchemaTeacherSubject = { _id: string; teacher_id: string; subject_id: string }
 export type SchemaStudentSubjectMarks = {
@@ -963,7 +1015,7 @@ export async function createSchemaSubject(body: { id: string; subject_name: stri
   return apiRequest<SchemaSubject>('/schema/subjects', { method: 'POST', body: JSON.stringify(body) })
 }
 
-export async function updateSchemaSubject(subjectId: string, body: { subject_name?: string }): Promise<SchemaSubject> {
+export async function updateSchemaSubject(subjectId: string, body: { subject_name?: string; attendance_days?: number }): Promise<SchemaSubject> {
   return apiRequest<SchemaSubject>(`/schema/subjects/${encodeURIComponent(subjectId)}`, { method: 'PUT', body: JSON.stringify(body) })
 }
 

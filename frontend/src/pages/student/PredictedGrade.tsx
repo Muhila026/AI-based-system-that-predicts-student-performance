@@ -244,14 +244,6 @@ const PredictedGrade: React.FC<PredictedGradeProps> = ({ sessionElapsedSeconds }
                 <Box component="span" sx={{ fontWeight: 700, color: THEME.textDark }}>
                   {data.predicted_score.toFixed(1)}%
                 </Box>
-                {data.confidence != null && data.confidence !== undefined && (
-                  <>
-                    {' · '}Confidence:{' '}
-                    <Box component="span" sx={{ fontWeight: 700, color: THEME.textDark }}>
-                      {(data.confidence * 100).toFixed(0)}%
-                    </Box>
-                  </>
-                )}
               </Typography>
               <Typography variant="body2" sx={{ color: THEME.muted, mt: 1 }}>
                 {gradeDescription}

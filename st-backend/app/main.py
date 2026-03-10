@@ -119,6 +119,10 @@ app.include_router(assignment_submissions_router)
 from app.routes.attendance_ml import router as attendance_ml_router
 app.include_router(attendance_ml_router)
 
+# Module attendance (per-subject, max 10 days)
+from app.routes.module_attendance import router as module_attendance_router
+app.include_router(module_attendance_router)
+
 # Assessments (course-linked exams/quizzes/assignments)
 from app.routes.assessments import router as assessments_router
 app.include_router(assessments_router)

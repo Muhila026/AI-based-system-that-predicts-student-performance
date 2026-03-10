@@ -8,7 +8,6 @@ import {
   Button,
   LinearProgress,
   Avatar,
-  CircularProgress,
 } from '@mui/material'
 import {
   Assignment,

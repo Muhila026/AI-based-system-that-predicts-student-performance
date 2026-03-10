@@ -118,38 +118,38 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ selectedPage, onSelectPage 
               transition={{ delay: index * 0.03 }}
             >
               <ListItem disablePadding sx={{ mb: 0.25 }}>
-                  <Tooltip title={item.tooltip || item.text} placement="right" arrow>
-                    <ListItemButton
-                      selected={isSelected}
-                      onClick={() => onSelectPage(item.text)}
-                  sx={{
-                    borderRadius: 0,
-                    borderLeft: isSelected ? `4px solid ${SIDEBAR.primary}` : '4px solid transparent',
-                    pl: isSelected ? 1.5 : 2,
-                    py: 1.25,
-                    '&.Mui-selected': {
-                      backgroundColor: SIDEBAR.primaryLight,
-                      '&:hover': { backgroundColor: '#DBEAFE' },
-                    },
-                    '&:hover': { backgroundColor: '#F9FAFB' },
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <ListItemIcon sx={{ color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark, minWidth: 40 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: '0.9rem',
-                      fontWeight: isSelected ? 600 : 500,
-                      color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark,
+                <Tooltip title={item.tooltip || item.text} placement="right" arrow>
+                  <ListItemButton
+                    selected={isSelected}
+                    onClick={() => onSelectPage(item.text)}
+                    sx={{
+                      borderRadius: 0,
+                      borderLeft: isSelected ? `4px solid ${SIDEBAR.primary}` : '4px solid transparent',
+                      pl: isSelected ? 1.5 : 2,
+                      py: 1.25,
+                      '&.Mui-selected': {
+                        backgroundColor: SIDEBAR.primaryLight,
+                        '&:hover': { backgroundColor: '#DBEAFE' },
+                      },
+                      '&:hover': { backgroundColor: '#F9FAFB' },
+                      transition: 'all 0.2s ease',
                     }}
+                  >
+                    <ListItemIcon sx={{ color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark, minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.text}
+                      primaryTypographyProps={{
+                        fontSize: '0.9rem',
+                        fontWeight: isSelected ? 600 : 500,
+                        color: isSelected ? SIDEBAR.primary : SIDEBAR.textDark,
+                      }}
                     />
-                    </ListItemButton>
-                  </Tooltip>
-                </ListItem>
-              </motion.div>
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            </motion.div>
           )
         })}
       </List>

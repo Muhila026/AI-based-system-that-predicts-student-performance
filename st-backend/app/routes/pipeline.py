@@ -60,19 +60,49 @@ async def _aggregate_ml_features(email: str) -> dict:
     except Exception:
         pass
 
-    # 2) Attendance percentage: from attendance_daily
+    # 2) Attendance percentage: prefer module_attendance with admin-assigned attendance_days; fallback to attendance_daily.
     try:
-        cursor = db.attendance_daily.find({"userEmail": email})
-        total_days = 0
-        present_days = 0
-        async for doc in cursor:
-            total_days += 1
-            if doc.get("present", False):
+        # Per-subject attendance based on module_attendance and subjects.attendance_days
+        email_regex = {"$regex": f"^{re.escape(email.strip())}$", "$options": "i"}
+        student_subjects = await db.student_subjects.find({"student_id": email_regex}, {"subject_id": 1}).to_list(200)
+        subject_ids = [doc.get("subject_id") for doc in student_subjects if doc.get("subject_id")]
+        total_pct = 0.0
+        counted = 0
+        for sid in subject_ids:
+            subj = await db.subjects.find_one({"_id": sid}, {"attendance_days": 1})
+            if not subj:
+                continue
+            planned_days = int(subj.get("attendance_days") or 0)
+            if planned_days <= 0:
+                continue
+            present_days = 0
+            cursor = db.module_attendance.find({"subject_id": sid, "student_email": email, "present": True})
+            async for _doc in cursor:
                 present_days += 1
-        if total_days > 0:
-            attendance_percentage = round((present_days / total_days) * 100.0, 2)
+            if present_days <= 0:
+                continue
+            pct = min(100.0, max(0.0, (present_days / planned_days) * 100.0))
+            total_pct += pct
+            counted += 1
+        if counted > 0:
+            attendance_percentage = round(total_pct / counted, 2)
     except Exception:
-        pass
+        attendance_percentage = 0.0
+
+    if attendance_percentage == 0.0:
+        # Fallback: historical daily attendance (if module-level is not configured)
+        try:
+            cursor = db.attendance_daily.find({"userEmail": email})
+            total_days = 0
+            present_days = 0
+            async for doc in cursor:
+                total_days += 1
+                if doc.get("present", False):
+                    present_days += 1
+            if total_days > 0:
+                attendance_percentage = round((present_days / total_days) * 100.0, 2)
+        except Exception:
+            pass
 
     # 3) Class participation: average of participationScore from student_participation, scale to 0–100 (assume 1–5 or 0–10)
     try:
