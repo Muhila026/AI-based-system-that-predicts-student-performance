@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import uuid
 
@@ -10,6 +10,7 @@ from app.models import (
     TeacherResponse,
     ApiResponse,
 )
+from app.routes.prediction import predict_grade_from_features
 from app.auth import require_role
 
 router = APIRouter(prefix="/api/v1/teachers", tags=["Teachers"])
@@ -130,6 +131,8 @@ async def get_teacher_students_performance(user: dict = Depends(require_role(["t
     except Exception:
         return []
     result = []
+    now_date = datetime.utcnow().date()
+    since_study = (now_date - timedelta(days=7)).isoformat()
     for u in users:
         try:
             email = u.get("email", "")
@@ -156,6 +159,49 @@ async def get_teacher_students_performance(user: dict = Depends(require_role(["t
             except Exception:
                 pass
             attendance = round((present_days / total_days) * 100.0, 1) if total_days > 0 else 0.0
+            # Weekly study hours (last 7 days)
+            weekly_hours = 0.0
+            try:
+                async for doc in db.student_study_logs.find(
+                    {
+                        "userEmail": email,
+                        "isActive": True,
+                        "studyDate": {"$gte": since_study},
+                    }
+                ):
+                    weekly_hours += float(doc.get("studyHours", 0.0) or 0.0)
+            except Exception:
+                weekly_hours = 0.0
+            weekly_hours = round(weekly_hours, 2)
+            # Class participation from latest participationScore (1–5 → 0–100%)
+            class_participation = 0.0
+            try:
+                cursor = (
+                    db.student_participation.find(
+                        {"userEmail": email, "isActive": True}
+                    )
+                    .sort("createdAt", -1)
+                    .limit(1)
+                )
+                docs = await cursor.to_list(length=1)
+                if docs:
+                    rating = float(docs[0].get("participationScore", 0.0) or 0.0)
+                    class_participation = max(0.0, min(100.0, rating * 20.0))
+            except Exception:
+                class_participation = 0.0
+            class_participation = round(class_participation, 1)
+            # Predicted grade from ML model (best-effort)
+            predicted_grade = None
+            try:
+                grade, _confidence, _pred_score = predict_grade_from_features(
+                    weekly_self_study_hours=weekly_hours,
+                    attendance_percentage=attendance,
+                    class_participation=class_participation,
+                    total_score=avg_score,
+                )
+                predicted_grade = grade
+            except Exception:
+                predicted_grade = None
             assignments_str = f"{sub_count}/—"
             if avg_score >= 85 and attendance >= 90:
                 status = "excellent"
@@ -174,6 +220,10 @@ async def get_teacher_students_performance(user: dict = Depends(require_role(["t
                 "attendance": attendance,
                 "assignments": assignments_str,
                 "status": status,
+                "predictedGrade": predicted_grade,
+                "totalScore": avg_score,
+                "classParticipation": class_participation,
+                "studyHours": weekly_hours,
             })
         except Exception:
             continue

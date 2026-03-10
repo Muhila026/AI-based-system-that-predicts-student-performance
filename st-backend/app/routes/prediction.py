@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 
 from app.database import get_database
-from app.auth import get_current_user
+from app.auth import get_current_user, require_role
 from app.models import (
     StudentStudyLogRequest,
     StudentStudyLogResponse,
@@ -149,11 +149,11 @@ WEEKLY_STUDY_HOURS_MIN = 3.0  # minimum required per week (from login/session + 
 
 
 @study_logs_router.post("/me/from-session", response_model=StudentStudyLogResponse)
-async def create_study_log_from_session(user: dict = Depends(get_current_user)):
+async def create_study_log_from_session(user: dict = Depends(require_role(["student"]))):
     """
-    Create a study log from login-to-logout session time.
+    Create a study log from login-to-logout session time (students only).
     Uses the user's lastLoginAt; duration = now - lastLoginAt, stored as studyHours for today.
-    Call this on logout so weekly study hours include time spent logged in.
+    Call this on student logout so dashboard study hours (last 7 days) include session time.
     """
     email = (user.get("email") or user.get("sub") or "").strip()
     if not email:
@@ -176,8 +176,6 @@ async def create_study_log_from_session(user: dict = Depends(get_current_user)):
     now = datetime.utcnow()
     delta = now - login_dt
     duration_hours = max(0.0, min(24.0, delta.total_seconds() / 3600.0))
-    if duration_hours < 1 / 60.0:
-        raise HTTPException(status_code=400, detail="Session too short to log (under 1 minute)")
     date_str = now.date().isoformat()
     log_id = str(uuid.uuid4())
     now_iso = _now_iso()

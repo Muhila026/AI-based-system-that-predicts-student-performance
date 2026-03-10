@@ -8,6 +8,7 @@ python-multipart
 pydantic[email]
 pydantic-settings
 python-dotenv
+google-generativeai
 bcrypt
 scikit-learn
 joblib

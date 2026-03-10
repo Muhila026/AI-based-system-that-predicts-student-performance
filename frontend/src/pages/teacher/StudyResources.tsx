@@ -33,11 +33,11 @@ import {
   uploadStudyResource,
   deleteStudyResource,
   downloadStudyResource,
-  getSchemaSubjects,
-  getCourses,
   getTeacherMySubjects,
   type StudyResource,
+  type TeacherSubjectWithName,
 } from '../../lib/api'
+import { useAppWebSocket } from '../../hooks/useChatWebSocket'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -63,31 +63,34 @@ const StudyResources: React.FC = () => {
     class: '',
     type: '',
     description: '',
+    subject_id: '',
   })
-  const [classOptions, setClassOptions] = useState<string[]>([])
+  const [subjectOptions, setSubjectOptions] = useState<TeacherSubjectWithName[]>([])
 
   useEffect(() => {
     loadResources()
   }, [])
 
+  useAppWebSocket((data) => {
+    if (data?.type === 'study_resource_status' && data.resourceId && data.status) {
+      setResources((prev) =>
+        prev.map((r) =>
+          r.id === data.resourceId ? { ...r, status: data.status as StudyResource['status'] } : r
+        )
+      )
+    }
+  })
+
   useEffect(() => {
-    const loadClassOptions = async () => {
+    const loadSubjects = async () => {
       try {
-        const [schemaSubjects, courses, mySubjects] = await Promise.all([
-          getSchemaSubjects(),
-          getCourses(),
-          getTeacherMySubjects(),
-        ])
-        const fromSchema = (schemaSubjects || []).map((s) => (s as { subject_name?: string }).subject_name).filter(Boolean) as string[]
-        const fromCourses = (courses || []).map((c) => (c as { name?: string }).name).filter(Boolean) as string[]
-        const fromMySubjects = (mySubjects || []).map((s) => (s as { subject_name?: string }).subject_name).filter(Boolean) as string[]
-        const combined = [...new Set([...fromMySubjects, ...fromSchema, ...fromCourses])].filter(Boolean).sort()
-        setClassOptions(combined)
+        const mySubjects = await getTeacherMySubjects()
+        setSubjectOptions(Array.isArray(mySubjects) ? mySubjects : [])
       } catch {
-        setClassOptions([])
+        setSubjectOptions([])
       }
     }
-    loadClassOptions()
+    loadSubjects()
   }, [])
 
   const loadResources = async () => {
@@ -127,10 +130,10 @@ const StudyResources: React.FC = () => {
   }
 
   const handleUpload = async () => {
-    if (!selectedFile || !newResource.title || !newResource.class || !newResource.type) {
+    if (!selectedFile || !newResource.title || !newResource.type || !newResource.subject_id) {
       setSnackbar({
         open: true,
-        message: 'Please fill in all required fields and select a file',
+        message: 'Please fill in title, type, select a subject you teach, and a file',
         severity: 'error',
       })
       return
@@ -138,12 +141,14 @@ const StudyResources: React.FC = () => {
 
     try {
       setUploading(true)
+      const subjectName = subjectOptions.find((s) => s.subject_id === newResource.subject_id)?.subject_name || newResource.class
       await uploadStudyResource(
         selectedFile,
         newResource.title,
-        newResource.class,
+        subjectName,
         newResource.type as 'PDF' | 'Video' | 'Image' | 'Other',
-        newResource.description || undefined
+        newResource.description || undefined,
+        newResource.subject_id
       )
       setSnackbar({
         open: true,
@@ -152,7 +157,7 @@ const StudyResources: React.FC = () => {
       })
       setOpenDialog(false)
       setSelectedFile(null)
-      setNewResource({ title: '', class: '', type: '', description: '' })
+      setNewResource({ title: '', class: '', type: '', description: '', subject_id: '' })
       await loadResources()
     } catch (error: any) {
       console.error('Upload failed:', error)
@@ -292,10 +297,12 @@ const StudyResources: React.FC = () => {
                         <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                           {resource.title}
                         </Typography>
-                        <Box display="flex" gap={2} mt={0.5} flexWrap="wrap">
-                          <Typography variant="caption" sx={{ color: THEME.muted }}>
-                            {resource.class_name}
-                          </Typography>
+                        <Box display="flex" gap={2} mt={0.5} flexWrap="wrap" alignItems="center">
+                          {(resource.subject_name || resource.class_name) && (
+                            <Typography variant="caption" sx={{ color: THEME.muted }}>
+                              {resource.subject_name || resource.class_name}
+                            </Typography>
+                          )}
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
                             {resource.size}
                           </Typography>
@@ -305,6 +312,24 @@ const StudyResources: React.FC = () => {
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
                             {resource.downloads ?? 0} downloads
                           </Typography>
+                          <Chip
+                            size="small"
+                            label={(resource.status || 'pending').toUpperCase()}
+                            sx={{
+                              bgcolor:
+                                resource.status === 'approved'
+                                  ? '#dcfce7'
+                                  : resource.status === 'rejected'
+                                    ? '#fee2e2'
+                                    : '#fef3c7',
+                              color:
+                                resource.status === 'approved'
+                                  ? '#15803d'
+                                  : resource.status === 'rejected'
+                                    ? '#991b1b'
+                                    : '#b45309',
+                            }}
+                          />
                         </Box>
                       </Box>
                       <Chip
@@ -366,29 +391,31 @@ const StudyResources: React.FC = () => {
               value={newResource.title}
               onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
             />
-            {classOptions.length > 0 ? (
-              <FormControl fullWidth>
-                <InputLabel>Subject / Class</InputLabel>
+            {subjectOptions.length > 0 ? (
+              <FormControl fullWidth required>
+                <InputLabel>Subject (required)</InputLabel>
                 <Select
-                  value={newResource.class}
-                  label="Subject / Class"
-                  onChange={(e) => setNewResource({ ...newResource, class: e.target.value })}
+                  value={newResource.subject_id}
+                  label="Subject (required)"
+                  onChange={(e) =>
+                    setNewResource({
+                      ...newResource,
+                      subject_id: e.target.value,
+                      class: subjectOptions.find((s) => s.subject_id === e.target.value)?.subject_name || '',
+                    })
+                  }
                 >
-                  {classOptions.map((opt) => (
-                    <MenuItem key={opt} value={opt}>
-                      {opt}
+                  {subjectOptions.map((s) => (
+                    <MenuItem key={s.id} value={s.subject_id}>
+                      {s.subject_name || s.subject_id}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             ) : (
-              <TextField
-                fullWidth
-                label="Subject / Class"
-                value={newResource.class}
-                onChange={(e) => setNewResource({ ...newResource, class: e.target.value })}
-                placeholder="Enter subject or class name"
-              />
+              <Typography variant="body2" color="text.secondary">
+                No subjects assigned. Contact admin to assign you to a subject before uploading.
+              </Typography>
             )}
             <FormControl fullWidth>
               <InputLabel>Resource Type</InputLabel>

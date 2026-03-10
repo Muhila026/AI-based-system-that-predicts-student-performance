@@ -22,11 +22,11 @@ import {
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import {
-  getTeacherDashboard,
   getCourses,
   getTeacherAssignments,
+  getTeacherStudentPerformance,
 } from '../../lib/api'
-import type { AdminCourse } from '../../lib/api'
+import type { AdminCourse, TeacherStudentPerformanceItem } from '../../lib/api'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -62,6 +62,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
   const [dashboardData, setDashboardData] = useState<DashboardData>({ stats: [] })
   const [courses, setCourses] = useState<AdminCourse[]>([])
   const [assignments, setAssignments] = useState<any[]>([])
+  const [studentPerf, setStudentPerf] = useState<TeacherStudentPerformanceItem[]>([])
 
   useEffect(() => {
     loadDashboardData()
@@ -70,16 +71,78 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const [statsRes, coursesRes, assignmentsRes] = await Promise.all([
-        getTeacherDashboard(),
+      const [coursesRes, assignmentsRes, perfRes] = await Promise.all([
         getCourses(),
         getTeacherAssignments(),
+        getTeacherStudentPerformance(),
       ])
-      const raw = statsRes as { stats?: DashboardStats[]; data?: { stats?: DashboardStats[] } }
-      const stats = raw?.stats ?? raw?.data?.stats ?? []
+
+      const coursesArr = Array.isArray(coursesRes) ? coursesRes : []
+      const assignmentsArr = Array.isArray(assignmentsRes) ? assignmentsRes : []
+      const perfArr = Array.isArray(perfRes) ? perfRes : []
+
+      // Derive core metrics from real data
+      const classOverviewTemp = coursesArr.map((c) => ({
+        id: (c as any).id ?? (c as any)._id ?? '',
+        class: (c as any).name || (c as any).code || (c as any).courseTitle || 'Unnamed Course',
+        students:
+          typeof (c as any).students === 'number'
+            ? (c as any).students
+            : parseInt(
+                String((c as any).students ?? (c as any).totalEnrolledStudents ?? 0),
+                10
+              ) || 0,
+        status: (c as any).status ?? 'Active',
+      }))
+
+      const activeCoursesCount = classOverviewTemp.filter(
+        (c) => (c.status || 'Active').toLowerCase() !== 'inactive'
+      ).length
+
+      const pendingGradingCount = assignmentsArr.filter(
+        (a) =>
+          (a.submitted ?? 0) > (a.graded ?? 0) ||
+          (a.status && String(a.status).toLowerCase() === 'active')
+      ).length
+
+      const avgPerformance =
+        perfArr.length > 0
+          ? perfArr.reduce((sum, s) => {
+              const score = s.totalScore ?? s.avgScore ?? 0
+              return sum + (typeof score === 'number' ? score : 0)
+            }, 0) / perfArr.length
+          : 0
+
+      const stats: DashboardStats[] = [
+        {
+          title: 'Total Students',
+          value: String(perfArr.length),
+          change: 'Students across your classes',
+        },
+        {
+          title: 'Active Courses',
+          value: String(activeCoursesCount),
+          change: 'Courses you are currently teaching',
+        },
+        {
+          title: 'Avg Performance',
+          value:
+            perfArr.length > 0
+              ? `${avgPerformance.toFixed(1).replace(/\.0$/, '')}%`
+              : '—',
+          change: perfArr.length > 0 ? 'Average total score of your students' : 'No performance data yet',
+        },
+        {
+          title: 'Pending Grading',
+          value: String(pendingGradingCount),
+          change: 'Assignments that still need grading',
+        },
+      ]
+
       setDashboardData({ stats })
-      setCourses(Array.isArray(coursesRes) ? coursesRes : [])
-      setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : [])
+      setCourses(coursesArr)
+      setAssignments(assignmentsArr)
+      setStudentPerf(perfArr)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
       setDashboardData({

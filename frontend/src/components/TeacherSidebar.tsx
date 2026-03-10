@@ -213,7 +213,16 @@ const TeacherSidebar: React.FC<TeacherSidebarProps> = ({ selectedPage, onSelectP
           <Typography variant="subtitle1" fontWeight="700" sx={{ color: SIDEBAR.textDark, mb: 0.5 }}>
             {displayName}
           </Typography>
-          <Typography variant="caption" sx={{ color: SIDEBAR.inactive, display: 'block', mb: 2 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: '#059669',
+              display: 'block',
+              mb: 2,
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+            }}
+          >
             {subtitle}
           </Typography>
           <Button

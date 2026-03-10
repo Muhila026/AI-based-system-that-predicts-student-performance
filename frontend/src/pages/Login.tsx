@@ -16,7 +16,6 @@ import {
   Error as ErrorIcon,
   Visibility,
   VisibilityOff,
-  CheckCircle,
 } from '@mui/icons-material'
 import { login, checkBackendConnection } from '../lib/api'
 

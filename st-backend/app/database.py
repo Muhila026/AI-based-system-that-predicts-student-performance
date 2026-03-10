@@ -45,6 +45,7 @@ COLLECTIONS = [
     "student_subject_marks",
     "predictions",
     "subject_assignments",
+    "study_resources",
 ]
 
 
@@ -83,7 +84,11 @@ async def connect_to_mongo():
     await db.course_enrollments.create_index([("courseId", 1), ("userEmail", 1)])
     await db.course_payments.create_index("userEmail")
     await db.chats.create_index("id", unique=True)
+    await db.chats.create_index([("type", 1), ("participantKey", 1)])  # direct chat find-by-pair
+    await db.chat_members.create_index([("userEmail", 1), ("chatId", 1)])
+    await db.chat_members.create_index([("chatId", 1), ("userEmail", 1)])
     await db.messages.create_index("chatId")
+    await db.messages.create_index([("chatId", 1), ("createdAt", -1)])
     await db.notifications.create_index("userEmail")
     await db.student_study_logs.create_index([("userEmail", 1), ("courseId", 1)])
     await db.student_participation.create_index([("userEmail", 1), ("courseId", 1)])
@@ -101,6 +106,8 @@ async def connect_to_mongo():
     await db.predictions.create_index("student_id")
     await db.subject_assignments.create_index("subject_id")
     await db.subject_assignments.create_index("teacher_id")
+    await db.study_resources.create_index([("status", 1), ("subject_id", 1)])
+    await db.study_resources.create_index("uploadedBy")
     print("[OK] Database indexes created")
 
     # Seed default admin if not exists; migrate existing super_admin to admin

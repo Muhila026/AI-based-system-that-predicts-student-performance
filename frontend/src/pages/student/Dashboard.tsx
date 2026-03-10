@@ -24,11 +24,12 @@ import {
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import {
-  getPredictedScore,
+  getMyPredictedGrade,
   getStudentDashboardMetrics,
   getSchemaAssignments,
   getMyAssignmentSubmissions,
   StudentDashboardMetrics,
+  type PredictedGradeResponse,
   type SchemaSubjectAssignment,
   type MySubmissionItem,
 } from '../../lib/api'
@@ -61,7 +62,7 @@ const STUDY_HOURS_GOAL = 40 // optional monthly goal for progress bar
 
 const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
   const { onSelectPage } = props
-  const [predicted, setPredicted] = useState<number | null>(null)
+  const [predictedData, setPredictedData] = useState<PredictedGradeResponse | null>(null)
   const [metrics, setMetrics] = useState<StudentDashboardMetrics | null>(null)
   const [assignments, setAssignments] = useState<SchemaSubjectAssignment[]>([])
   const [submissions, setSubmissions] = useState<MySubmissionItem[]>([])
@@ -71,19 +72,18 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
     const loadDashboardData = async () => {
       try {
         setLoading(true)
-        const [predictedScore, dashboardMetrics, assignmentsData, submissionsData] = await Promise.all([
-          getPredictedScore({ attendanceRate: 0.9, avgAssignmentScore: 78, pastExamAvg: 74, engagementScore: 0.7 }).catch(() => 86),
+        const [gradeData, dashboardMetrics, assignmentsData, submissionsData] = await Promise.all([
+          getMyPredictedGrade(),
           getStudentDashboardMetrics(),
           getSchemaAssignments(),
           getMyAssignmentSubmissions(),
         ])
-        setPredicted(predictedScore)
+        setPredictedData(gradeData)
         setMetrics(dashboardMetrics)
         setAssignments(Array.isArray(assignmentsData) ? assignmentsData : [])
         setSubmissions(Array.isArray(submissionsData) ? submissionsData : [])
       } catch (error) {
         console.error('Failed to load dashboard data:', error)
-        setPredicted(86)
         setMetrics({
           study_hours: 24.5,
           attendance_percentage: 89.2,
@@ -113,6 +113,39 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
       .slice(0, 5)
   }, [assignments, submissions])
 
+  const predictedGradeInfo = useMemo(() => {
+    if (!predictedData) return null
+    const grade = predictedData.predicted_grade || ''
+    const upper = grade.toUpperCase()
+
+    let color = '#10b981'
+    let label = 'Excellent'
+
+    if (upper.startsWith('A')) {
+      color = '#10b981'
+      label = 'Excellent'
+    } else if (upper.startsWith('B')) {
+      color = '#3b82f6'
+      label = 'Good'
+    } else if (upper.startsWith('C')) {
+      color = '#f59e0b'
+      label = 'Average'
+    } else if (upper.startsWith('D')) {
+      color = '#ef4444'
+      label = 'Below Average'
+    } else if (upper.startsWith('F')) {
+      color = '#dc2626'
+      label = 'At risk'
+    }
+
+    return {
+      grade,
+      label,
+      color,
+      score: predictedData.predicted_score,
+    }
+  }, [predictedData])
+
   const stats = useMemo(() => {
     if (!metrics) return []
 
@@ -127,7 +160,7 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
       {
         title: 'Study Hours',
         value: `${metrics.study_hours}h`,
-        change: 'This month',
+        change: 'Last 7 days (from login–logout time)',
         icon: <Timer />,
         color: '#f59e0b',
       },
@@ -312,11 +345,11 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
         </Box>
       )}
 
-      {/* Study hours highlight & New assignments – two columns on md+ */}
+      {/* Study hours, Predicted grade & New assignments – three columns on md+ */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
           gap: 2.5,
           mb: 4,
         }}
@@ -352,7 +385,7 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
                   Study Hours
                 </Typography>
                 <Typography variant="body2" sx={{ color: THEME.muted }}>
-                  This month
+                  From login–logout time (last 7 days)
                 </Typography>
               </Box>
             </Box>
@@ -378,7 +411,67 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
           </CardContent>
         </Card>
 
-        {/* New / Pending assignments */}
+        {/* Predicted grade card (middle) */}
+        {predictedGradeInfo && (
+          <Card
+            elevation={0}
+            sx={{
+              border: `1px solid ${THEME.primaryBorder}`,
+              borderRadius: 0,
+              backgroundColor: '#fff',
+              overflow: 'hidden',
+            }}
+          >
+            <CardContent sx={{ py: 2.5, px: 2.5 }}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 0,
+                    backgroundColor: THEME.primaryLight,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: predictedGradeInfo.color,
+                  }}
+                >
+                  <PsychologyIcon />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight="700" sx={{ color: THEME.textDark }}>
+                    Predicted Grade
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: THEME.muted }}>
+                    {predictedGradeInfo.label}
+                  </Typography>
+                </Box>
+              </Box>
+              {predictedGradeInfo?.score != null && (
+                <>
+                  <Typography
+                    variant="h3"
+                    fontWeight="800"
+                    sx={{
+                      color: predictedGradeInfo.color,
+                      mb: 1,
+                      letterSpacing: '-0.04em',
+                      fontSize: { xs: '2.4rem', md: '2.8rem' },
+                    }}
+                  >
+                    {predictedGradeInfo.grade}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: THEME.muted }}>
+                    Predicted score: <strong>{predictedGradeInfo.score.toFixed(1)}%</strong>
+                  </Typography>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )
+        }
+
+        {/* New / Pending assignments (right) */}
         <Card
           elevation={0}
           sx={{
@@ -468,4 +561,3 @@ const StudentDashboard = (props: StudentDashboardProps): React.ReactElement => {
 }
 
 export default StudentDashboard
-export type { StudentDashboardProps }

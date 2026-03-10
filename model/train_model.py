@@ -1,7 +1,4 @@
-# =============================================================================
 # Student Performance Grade Prediction - Logistic Regression
-# =============================================================================
-
 
 import pandas as pd
 import numpy as np
@@ -24,9 +21,8 @@ from sklearn.metrics import (
 
 warnings.filterwarnings("ignore")
 
-# =============================================================================
 # Step 1: Data Collection
-# =============================================================================
+
 print("=" * 65)
 print("  STEP 1: DATA COLLECTION")
 print("=" * 65)
@@ -40,14 +36,13 @@ print(f"  Columns: {list(df.columns)}")
 print(f"\n  First 5 rows:")
 print(df.head().to_string(index=False))
 
-# =============================================================================
 # Step 2: Data Preprocessing
-# =============================================================================
+
 print("\n" + "=" * 65)
 print("  STEP 2: DATA PREPROCESSING")
 print("=" * 65)
 
-# --- 2a. Drop unnecessary columns ---
+# --- 2a. Drop unnecessary columns 
 cols_to_drop = [col for col in df.columns if col.startswith("Unnamed")]
 if cols_to_drop:
     df.drop(columns=cols_to_drop, inplace=True)
@@ -114,9 +109,7 @@ print(f"  Features normalized: {feature_cols}")
 print(f"\n  Normalized sample:")
 print(df.head().to_string(index=False))
 
-# =============================================================================
 # Step 3: Feature Engineering & Split Data
-# =============================================================================
 print("\n" + "=" * 65)
 print("  STEP 3: FEATURE ENGINEERING & SPLIT DATA")
 print("=" * 65)
@@ -158,9 +151,8 @@ for grade_num, count in y_test.value_counts().sort_index().items():
     grade_letter = [k for k, v in grade_mapping.items() if v == grade_num][0]
     print(f"    Grade {grade_letter}: {count:>10,}")
 
-# =============================================================================
 # Step 4: Train Logistic Regression Model
-# =============================================================================
+
 print("\n" + "=" * 65)
 print("  STEP 4: TRAIN LOGISTIC REGRESSION MODEL")
 print("=" * 65)

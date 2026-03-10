@@ -23,15 +23,16 @@ import {
   Message,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
-import { 
-  getChatConversations, 
-  getChatMessages, 
+import {
+  getChatConversations,
+  getChatMessages,
   sendChatMessage,
   getChatAvailableUsers,
   createChatConversation,
   getCurrentUser,
   type AdminUser,
 } from '../../lib/api'
+import { useChatWebSocket } from '../../hooks/useChatWebSocket'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -90,6 +91,30 @@ const Chat: React.FC = () => {
       fetchMessages(selectedConversation)
     }
   }, [selectedConversation])
+
+  // Real-time: when server pushes a new message, append to current chat or refresh list
+  useChatWebSocket(({ chatId, message }) => {
+    setMessages((prev) => {
+      if (chatId !== selectedConversation) return prev
+      if (prev.some((m) => m.id === message.id)) return prev
+      return [...prev, { ...message, timestamp: message.timestamp || message.createdAt || new Date().toISOString() }]
+    })
+    setConversations((prev) => {
+      const conv = prev.find((c) => c.id === chatId)
+      if (!conv) return prev
+      const updated = prev.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              lastMessage: (message.message || '').slice(0, 80),
+              lastMessageTime: message.timestamp || message.createdAt || c.lastMessageTime,
+              unreadCount: c.id === selectedConversation ? c.unreadCount : c.unreadCount + 1,
+            }
+          : c
+      )
+      return updated.sort((a, b) => (b.lastMessageTime || '').localeCompare(a.lastMessageTime || ''))
+    })
+  })
 
   useEffect(() => {
     // Auto-scroll to bottom when messages change

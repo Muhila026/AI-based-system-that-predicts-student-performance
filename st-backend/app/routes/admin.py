@@ -138,7 +138,8 @@ async def get_dashboard(user: dict = Depends(require_role(["admin"]))):
     db = get_database()
 
     total_users = await db.users.count_documents({})
-    total_courses = await db.courses.count_documents({})
+    # Treat "Active Courses" on the admin panel as the total number of subjects configured
+    total_subjects = await db.subjects.count_documents({})
 
     # Role breakdown
     pipeline = [
@@ -163,8 +164,18 @@ async def get_dashboard(user: dict = Depends(require_role(["admin"]))):
         ]
 
     stats = [
-        {"title": "Total Users", "value": str(total_users), "change": "From database", "color": "#3b82f6"},
-        {"title": "Active Courses", "value": str(total_courses), "change": "From database", "color": "#10b981"},
+        {
+            "title": "Total Users",
+            "value": str(total_users),
+            "change": "From database",
+            "color": "#3b82f6",
+        },
+        {
+            "title": "Active Courses",
+            "value": str(total_subjects),
+            "change": "Total subjects from database",
+            "color": "#10b981",
+        },
     ]
     activities = [
         {"activity": "Admin dashboard loaded", "user": user.get("email", "System"), "time": "Just now"},

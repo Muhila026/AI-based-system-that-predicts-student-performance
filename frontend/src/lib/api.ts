@@ -17,6 +17,14 @@ export { getCurrentUser }
 const USE_MOCK_ONLY = false
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1'
 
+/** WebSocket URL for real-time chat (with token). Returns null if not logged in. */
+export function getChatWebSocketUrl(): string | null {
+  const token = getAuthToken()
+  if (!token) return null
+  const base = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')
+  return `${base}/api/v1/chats/ws?token=${encodeURIComponent(token)}`
+}
+
 let backendConnected: boolean | null = null
 let backendCheckInProgress = false
 
@@ -1724,16 +1732,67 @@ export type TeacherStudentPerformanceItem = {
   id: string
   name: string
   email: string
-  class: string
-  avgScore: number
-  attendance: number
-  assignments: string
-  status: 'excellent' | 'good' | 'average' | 'at-risk'
+  class?: string
+  avgScore?: number
+  attendance?: number
+  assignments?: string
+  status?: 'excellent' | 'good' | 'average' | 'at-risk'
+  /** Overall predicted grade for the student (e.g. A, B+, C). */
+  predictedGrade?: string
+  /** Total performance score (0–100). If not provided, falls back to avgScore. */
+  totalScore?: number
+  /** Class participation percentage (0–100). */
+  classParticipation?: number
+  /** Aggregated study hours used for predictions (e.g. weekly or semester total). */
+  studyHours?: number
 }
 
 export async function getTeacherStudentPerformance(): Promise<TeacherStudentPerformanceItem[]> {
   try {
-    return await apiRequest<TeacherStudentPerformanceItem[]>('/teachers/students/performance')
+    const raw = await apiRequest<any[]>('/teachers/students/performance')
+    if (!Array.isArray(raw)) return []
+
+    return raw.map((item) => {
+      const avgScore =
+        item.avgScore ??
+        item.total_score ??
+        item.avg_score ??
+        (typeof item.avgScore === 'number' ? item.avgScore : undefined)
+      const attendance =
+        item.attendance ??
+        item.attendance_percentage ??
+        (typeof item.attendance === 'number' ? item.attendance : undefined)
+
+      const totalScore =
+        item.totalScore ??
+        item.total_score ??
+        avgScore
+
+      return {
+        id: String(item.id ?? item.student_id ?? item.email ?? ''),
+        name: String(item.name ?? item.student_name ?? item.fullName ?? item.email ?? ''),
+        email: String(item.email ?? item.student_email ?? ''),
+        class: item.class ?? item.class_name ?? undefined,
+        avgScore: typeof avgScore === 'number' ? avgScore : undefined,
+        attendance: typeof attendance === 'number' ? attendance : undefined,
+        assignments: item.assignments ?? undefined,
+        status: (item.status as TeacherStudentPerformanceItem['status']) ?? 'average',
+        predictedGrade: item.predictedGrade ?? item.predicted_grade ?? item.grade ?? undefined,
+        totalScore: typeof totalScore === 'number' ? totalScore : undefined,
+        classParticipation:
+          typeof item.classParticipation === 'number'
+            ? item.classParticipation
+            : typeof item.class_participation === 'number'
+              ? item.class_participation
+              : undefined,
+        studyHours:
+          typeof item.studyHours === 'number'
+            ? item.studyHours
+            : typeof item.study_hours === 'number'
+              ? item.study_hours
+              : undefined,
+      }
+    })
   } catch (error) {
     console.error('Error fetching teacher student performance:', error)
     return []
@@ -1920,6 +1979,9 @@ export type StudyResource = {
   fileUrl: string
   teacherId: string
   teacherName: string
+  status?: 'pending' | 'approved' | 'rejected'
+  subject_id?: string
+  subject_name?: string
 }
 
 export async function getStudyResources(): Promise<StudyResource[]> {
@@ -1936,7 +1998,8 @@ export async function uploadStudyResource(
   title: string,
   class_name: string,
   type: 'PDF' | 'Video' | 'Image' | 'Other',
-  description?: string
+  description?: string,
+  subject_id?: string
 ): Promise<StudyResource> {
   const formData = new FormData()
   formData.append('file', file)
@@ -1945,6 +2008,9 @@ export async function uploadStudyResource(
   formData.append('type', type)
   if (description) {
     formData.append('description', description)
+  }
+  if (subject_id) {
+    formData.append('subject_id', subject_id)
   }
 
   const token = getAuthToken()
@@ -2029,6 +2095,32 @@ export async function getStudentStudyResources(): Promise<StudyResource[]> {
     console.error('Error fetching study resources:', error)
     return []
   }
+}
+
+/** Admin: list study resources pending approval */
+export async function getStudyResourcesPending(): Promise<StudyResource[]> {
+  try {
+    return await apiRequest<StudyResource[]>('/teachers/study-resources/pending')
+  } catch (error) {
+    console.error('Error fetching pending study resources:', error)
+    return []
+  }
+}
+
+/** Admin: approve a study resource */
+export async function approveStudyResource(resourceId: string): Promise<StudyResource> {
+  return await apiRequest<StudyResource>(`/teachers/study-resources/${resourceId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'approved' }),
+  })
+}
+
+/** Admin: reject a study resource */
+export async function rejectStudyResource(resourceId: string): Promise<StudyResource> {
+  return await apiRequest<StudyResource>(`/teachers/study-resources/${resourceId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'rejected' }),
+  })
 }
 
 export type Module = {

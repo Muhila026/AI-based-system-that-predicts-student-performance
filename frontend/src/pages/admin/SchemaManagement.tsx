@@ -50,6 +50,8 @@ import {
   uploadSchemaAssignmentPdf,
   getAssignmentPdfBlob,
   getUsers,
+  getTeacherStudentPerformance,
+  type TeacherStudentPerformanceItem,
   type SchemaSubject,
   type SchemaStudentSubject,
   type SchemaTeacherSubject,
@@ -66,7 +68,7 @@ const THEME = {
   textDark: '#1f2937',
 }
 
-type TabValue = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'marks' | 'predictions'
+type TabValue = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'predictions'
 
 const SchemaManagement: React.FC = () => {
   const [tab, setTab] = useState<TabValue>('subjects')
@@ -77,6 +79,15 @@ const SchemaManagement: React.FC = () => {
   const [predictions, setPredictions] = useState<SchemaPrediction[]>([])
   const [assignments, setAssignments] = useState<SchemaSubjectAssignment[]>([])
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([])
+  const [teacherStudentPerf, setTeacherStudentPerf] = useState<TeacherStudentPerformanceItem[]>([])
+  type SearchKey = 'subjects' | 'student_subjects' | 'teacher_subjects' | 'assignments' | 'predictions'
+  const [searchQueries, setSearchQueries] = useState<Record<SearchKey, string>>({
+    subjects: '',
+    student_subjects: '',
+    teacher_subjects: '',
+    assignments: '',
+    predictions: '',
+  })
   const [loading, setLoading] = useState(true)
 
   const [openSubjectDialog, setOpenSubjectDialog] = useState(false)
@@ -113,7 +124,7 @@ const SchemaManagement: React.FC = () => {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [s, ss, ts, m, p, a, u] = await Promise.all([
+      const [s, ss, ts, m, p, a, u, perf] = await Promise.all([
         getSchemaSubjects(),
         getSchemaStudentSubjects(),
         getSchemaTeacherSubjects(),
@@ -121,6 +132,7 @@ const SchemaManagement: React.FC = () => {
         getSchemaPredictions(),
         getSchemaAssignments(),
         getUsers(),
+        getTeacherStudentPerformance(),
       ])
       setSubjects(s)
       setStudentSubjects(ss)
@@ -129,6 +141,7 @@ const SchemaManagement: React.FC = () => {
       setPredictions(p)
       setAssignments(a)
       setUsers(u.map((x: any) => ({ id: x.id ?? x.email, name: x.name || x.email, email: x.email, role: x.role || '' })))
+      setTeacherStudentPerf(Array.isArray(perf) ? perf : [])
     } finally {
       setLoading(false)
     }
@@ -326,6 +339,32 @@ const SchemaManagement: React.FC = () => {
   const students = users.filter((u) => u.role?.toLowerCase() === 'student')
   const teachers = users.filter((u) => u.role?.toLowerCase() === 'teacher')
 
+  const filteredSubjects = subjects.filter((s) =>
+    `${s._id} ${s.subject_name}`.toLowerCase().includes(searchQueries.subjects.toLowerCase())
+  )
+
+  const filteredStudentSubjects = studentSubjects.filter((r) =>
+    `${r._id} ${r.student_id} ${r.subject_id}`.toLowerCase().includes(
+      searchQueries.student_subjects.toLowerCase()
+    )
+  )
+
+  const filteredTeacherSubjects = teacherSubjects.filter((r) =>
+    `${r._id} ${r.teacher_id} ${r.subject_id}`.toLowerCase().includes(
+      searchQueries.teacher_subjects.toLowerCase()
+    )
+  )
+
+  const filteredAssignments = assignments.filter((a) =>
+    `${a.subject_name} ${a.subject_id} ${a.title} ${a.assignment_type}`.toLowerCase().includes(
+      searchQueries.assignments.toLowerCase()
+    )
+  )
+
+  const filteredPerfForPredictions = teacherStudentPerf.filter((s) =>
+    `${s.name} ${s.email}`.toLowerCase().includes(searchQueries.predictions.toLowerCase())
+  )
+
   return (
     <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
       <Box sx={{ pb: 2, borderBottom: `1px solid ${THEME.primaryBorder}`, mb: 2 }}>
@@ -342,7 +381,6 @@ const SchemaManagement: React.FC = () => {
         <Tab label="Student Subjects" value="student_subjects" />
         <Tab label="Teacher Subjects" value="teacher_subjects" />
         <Tab label="Subject Assignments" value="assignments" />
-        <Tab label="Marks" value="marks" />
         <Tab label="Predictions" value="predictions" />
       </Tabs>
 
@@ -371,6 +409,17 @@ const SchemaManagement: React.FC = () => {
                     Add Subject
                   </Button>
                 </Box>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search subjects by ID or name..."
+                    value={searchQueries.subjects}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({ ...prev, subjects: e.target.value }))
+                    }
+                  />
+                </Box>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -381,7 +430,7 @@ const SchemaManagement: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {subjects.map((s) => (
+                      {filteredSubjects.map((s) => (
                         <TableRow key={s._id}>
                           <TableCell>{s._id}</TableCell>
                           <TableCell>{s.subject_name}</TableCell>
@@ -431,6 +480,20 @@ const SchemaManagement: React.FC = () => {
                     Add
                   </Button>
                 </Box>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search by record ID, student ID, or subject ID..."
+                    value={searchQueries.student_subjects}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({
+                        ...prev,
+                        student_subjects: e.target.value,
+                      }))
+                    }
+                  />
+                </Box>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -442,7 +505,7 @@ const SchemaManagement: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {studentSubjects.map((r) => (
+                      {filteredStudentSubjects.map((r) => (
                         <TableRow key={r._id}>
                           <TableCell>{r._id}</TableCell>
                           <TableCell>{r.student_id}</TableCell>
@@ -490,6 +553,20 @@ const SchemaManagement: React.FC = () => {
                     Add
                   </Button>
                 </Box>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search by record ID, teacher ID, or subject ID..."
+                    value={searchQueries.teacher_subjects}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({
+                        ...prev,
+                        teacher_subjects: e.target.value,
+                      }))
+                    }
+                  />
+                </Box>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -501,7 +578,7 @@ const SchemaManagement: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {teacherSubjects.map((r) => (
+                      {filteredTeacherSubjects.map((r) => (
                         <TableRow key={r._id}>
                           <TableCell>{r._id}</TableCell>
                           <TableCell>{r.teacher_id}</TableCell>
@@ -550,6 +627,20 @@ const SchemaManagement: React.FC = () => {
                     Add Assignment
                   </Button>
                 </Box>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search assignments by subject, title, or type..."
+                    value={searchQueries.assignments}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({
+                        ...prev,
+                        assignments: e.target.value,
+                      }))
+                    }
+                  />
+                </Box>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -564,7 +655,7 @@ const SchemaManagement: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {assignments.map((a) => (
+                      {filteredAssignments.map((a) => (
                         <TableRow key={a.id}>
                           <TableCell>{a.subject_name} ({a.subject_id})</TableCell>
                           <TableCell>{a.title}</TableCell>
@@ -629,111 +720,91 @@ const SchemaManagement: React.FC = () => {
             </Card>
           )}
 
-          {tab === 'marks' && (
-            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography fontWeight="600">Student marks per subject</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={() => {
-                      setMarksForm({
-                        id: `AS${Date.now()}`,
-                        student_id: '',
-                        subject_id: '',
-                        assignment: 0,
-                        quiz: 0,
-                        mid_exam: 0,
-                        attendance: 0,
-                      })
-                      setOpenMarksDialog(true)
-                    }}
-                    sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
-                  >
-                    Add Marks
-                  </Button>
-                </Box>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: THEME.primaryLight }}>
-                        <TableCell sx={{ fontWeight: 600 }}>Student ID</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Subject ID</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Assignment</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Quiz</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Mid Exam</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Attendance</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {marks.map((r) => (
-                        <TableRow key={r._id}>
-                          <TableCell>{r.student_id}</TableCell>
-                          <TableCell>{r.subject_id}</TableCell>
-                          <TableCell>{r.assignment}</TableCell>
-                          <TableCell>{r.quiz}</TableCell>
-                          <TableCell>{r.mid_exam}</TableCell>
-                          <TableCell>{r.attendance}</TableCell>
-                          <TableCell align="right">
-                            <IconButton size="small" color="error" onClick={() => handleDeleteMarks(r._id)}>
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          )}
-
           {tab === 'predictions' && (
             <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography fontWeight="600">ML Predictions (per student per subject)</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={() => setOpenPredDialog(true)}
-                    sx={{ backgroundColor: THEME.primary, borderRadius: 0, textTransform: 'none' }}
-                  >
-                    Add Prediction
-                  </Button>
                 </Box>
-                <TableContainer>
+                <Typography variant="body2" sx={{ color: THEME.muted, mb: 1.5 }}>
+                  Combined view of all students with ML-related features. Subject‑level predictions are still stored below.
+                </Typography>
+                <Box mb={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search by student name or email..."
+                    value={searchQueries.predictions}
+                    onChange={(e) =>
+                      setSearchQueries((prev) => ({
+                        ...prev,
+                        predictions: e.target.value,
+                      }))
+                    }
+                  />
+                </Box>
+                <TableContainer sx={{ mb: 3 }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: THEME.primaryLight }}>
-                        <TableCell sx={{ fontWeight: 600 }}>Student ID</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Subject ID</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Result</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Risk</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Student</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Predicted Grade</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Total Score</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Attendance</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Class Participation</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Study Hours</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {predictions.map((p, i) => (
-                        <TableRow key={`${p.student_id}-${p.subject_id}-${i}`}>
-                          <TableCell>{p.student_id}</TableCell>
-                          <TableCell>{p.subject_id}</TableCell>
-                          <TableCell>{p.predicted_result}</TableCell>
-                          <TableCell>{p.risk_level}</TableCell>
-                          <TableCell align="right">
-                            <IconButton size="small" color="error" onClick={() => handleDeletePred(p.student_id, p.subject_id)}>
-                              <Delete fontSize="small" />
-                            </IconButton>
+                      {filteredPerfForPredictions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6}>
+                            <Typography variant="body2" sx={{ color: THEME.muted }}>
+                              No student performance data available yet.
+                            </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        filteredPerfForPredictions.map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="600" sx={{ color: THEME.textDark }}>
+                                {s.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: THEME.muted }}>
+                                {s.email}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {s.predictedGrade || '—'}
+                            </TableCell>
+                            <TableCell>
+                              {s.totalScore != null
+                                ? `${s.totalScore.toFixed(1).replace(/\.0$/, '')}%`
+                                : s.avgScore != null
+                                  ? `${s.avgScore.toFixed(1).replace(/\.0$/, '')}%`
+                                  : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {s.attendance != null ? `${s.attendance}%` : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {s.classParticipation != null
+                                ? `${s.classParticipation.toFixed(1).replace(/\.0$/, '')}%`
+                                : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {s.studyHours != null
+                                ? `${s.studyHours.toFixed(1).replace(/\.0$/, '')} h`
+                                : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
+
               </CardContent>
             </Card>
           )}

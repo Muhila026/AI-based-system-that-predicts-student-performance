@@ -54,7 +54,7 @@ const menuItems: MenuItem[] = [
   { text: 'Performance Predictor', icon: <PsychologyIcon />, tooltip: 'Predicted grade and performance' },
   { text: 'Modules', icon: <MenuBookIcon />, tooltip: 'Course modules and content' },
   { text: 'Assessments', icon: <AssignmentIcon />, tooltip: 'Exams, quizzes and assignments' },
-  { text: 'My Results', icon: <GradeIcon />, tooltip: 'Your grades and results' },
+  // { text: 'My Results', icon: <GradeIcon />, tooltip: 'Your grades and results' },
   { text: 'Attendance', icon: <EventNoteIcon />, tooltip: 'Attendance records' },
   { text: 'Study Resources', icon: <FolderOpenIcon />, tooltip: 'Download learning materials' },
   { text: 'Chat', icon: <ChatIcon />, tooltip: 'Message teachers' },
@@ -107,7 +107,10 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedPage, onSelectPage }) => {
           Cloud Campus
         </Typography>
       </Box>
-      <Typography variant="caption" sx={{ px: 2, color: SIDEBAR.textDark, display: 'block', mb: 2, fontWeight: 500, flexShrink: 0 }}>
+      <Typography
+        variant="caption"
+        sx={{ px: 2, color: SIDEBAR.textDark, display: 'block', mb: 2, fontWeight: 500, flexShrink: 0 }}
+      >
         Software Engineering
       </Typography>
 
@@ -209,7 +212,16 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedPage, onSelectPage }) => {
           <Typography variant="subtitle1" fontWeight="700" sx={{ color: SIDEBAR.textDark, mb: 0.5 }}>
             {displayName}
           </Typography>
-          <Typography variant="caption" sx={{ color: SIDEBAR.inactive, display: 'block', mb: 2 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: '#2563eb',
+              display: 'block',
+              mb: 2,
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+            }}
+          >
             {subtitle}
           </Typography>
           <Button

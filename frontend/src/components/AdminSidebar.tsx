@@ -22,6 +22,7 @@ import {
   FolderOpen as FolderOpenIcon,
   Subject as SubjectIcon,
   SmartToy as SmartToyIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import { getCurrentUser } from '../lib/api'
@@ -52,6 +53,7 @@ const menuItems: MenuItem[] = [
   { text: 'User Management', icon: <PeopleIcon />, tooltip: 'Manage students, teachers and admins' },
   { text: 'Subjects & Marks', icon: <SubjectIcon />, tooltip: 'Subjects, enrollments and marks' },
   { text: 'Study Resources', icon: <FolderOpenIcon />, tooltip: 'Upload and manage learning materials' },
+  { text: 'Approve Study Resources', icon: <CheckCircleIcon />, tooltip: 'Accept or reject teacher-uploaded resources' },
   { text: 'Chat', icon: <ChatIcon />, tooltip: 'Message teachers and students' },
   { text: 'Chatbot Support', icon: <SmartToyIcon />, tooltip: 'AI assistant' },
 ]
@@ -201,7 +203,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ selectedPage, onSelectPage 
           <Typography variant="subtitle1" fontWeight="700" sx={{ color: SIDEBAR.textDark, mb: 0.5 }}>
             {displayName}
           </Typography>
-          <Typography variant="caption" sx={{ color: SIDEBAR.inactive, display: 'block', mb: 2 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: '#7c3aed',
+              display: 'block',
+              mb: 2,
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+            }}
+          >
             {subtitle}
           </Typography>
           <Button

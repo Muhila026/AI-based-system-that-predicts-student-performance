@@ -88,11 +88,10 @@ const UploadAttendance: React.FC = () => {
           />
           <Button
             variant="contained"
-            sx={{ borderRadius: 0, backgroundColor: THEME.primary, '&:hover': { backgroundColor: '#1e40af' } }}
+            sx={{ borderRadius: 0, backgroundColor: THEME.primary, '&:hover': { backgroundColor: '#1e40af' }, mt: 1 }}
             startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Save />}
             onClick={handleSubmit}
             disabled={submitting || students.length === 0}
-            sx={{ mt: 1 }}
           >
             Save attendance
           </Button>

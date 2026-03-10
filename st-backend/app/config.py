@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # AI (Gemini)
     GEMINI_API_KEY: str = ""
     # Optional: allow selecting model from environment (e.g. "gemini-pro" or "gemini-1.5-flash")
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-flash-latest"
 
     class Config:
         env_file = ".env"

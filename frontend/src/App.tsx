@@ -8,10 +8,8 @@ import PerformanceAnalytics from './pages/student/PerformanceAnalytics'
 import PredictedGrade from './pages/student/PredictedGrade'
 import StudentModules from './pages/student/Modules'
 import StudentAssessments from './pages/student/Assessments'
-import MyResults from './pages/student/MyResults'
 import StudentAttendance from './pages/student/Attendance'
 import Assignments from './pages/student/Assignments'
-import Notifications from './pages/student/Notifications'
 import Profile from './pages/student/Profile'
 import ChatbotSupport from './pages/student/ChatbotSupport'
 import StudentStudyResources from './pages/student/StudyResources'
@@ -34,6 +32,7 @@ import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/admin/Dashboard'
 import UserManagement from './pages/admin/UserManagement'
 import SchemaManagement from './pages/admin/SchemaManagement'
+import StudyResourceApproval from './pages/admin/StudyResourceApproval'
 import AdminProfile from './pages/admin/Profile'
 
 import Login from './pages/Login'
@@ -57,6 +56,8 @@ function normalizeRole(role: string): string {
   return 'student'
 }
 
+const SESSION_LIMIT_SECONDS = 60 * 60 // 60 minutes per login session
+
 const App: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
@@ -67,6 +68,30 @@ const App: React.FC = () => {
   const [resetTokenForPassword, setResetTokenForPassword] = useState<string | null>(null)
   const [forgotPasswordInitialEmail, setForgotPasswordInitialEmail] = useState<string>('')
   const [openAddUserDialogOnce, setOpenAddUserDialogOnce] = useState<boolean>(false)
+  const [sessionStartAt, setSessionStartAt] = useState<number | null>(null)
+  const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState<number>(0)
+
+  // Clear saved user when tab/window is closed or refreshed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        const logoutInProgress = sessionStorage.getItem('logoutInProgress')
+        if (logoutInProgress !== '1') {
+          // Best-effort: record study log for this session before the tab closes.
+          recordSessionStudyLog().catch(() => { })
+        }
+      } catch {
+        // ignore
+      }
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
 
   useEffect(() => {
     const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
@@ -111,6 +136,8 @@ const App: React.FC = () => {
       }
       setIsAuthenticated(true)
       setUserRole(role)
+      setSessionStartAt(Date.now())
+      setSessionElapsedSeconds(0)
     } catch {
       localStorage.removeItem('user')
       sessionStorage.removeItem('user')
@@ -120,15 +147,48 @@ const App: React.FC = () => {
   }
 
   const handleLogout = () => {
-    recordSessionStudyLog().catch(() => {}).finally(() => {
-      localStorage.removeItem('user')
-      sessionStorage.removeItem('user')
-      setIsAuthenticated(false)
-      setUserRole('')
-      setSelectedPage('Dashboard')
-      setSearchParams({}, { replace: true })
-    })
+    if (userRole === 'student') {
+      sessionStorage.setItem('logoutInProgress', '1')
+      recordSessionStudyLog()
+        .catch(() => { })
+        .finally(() => {
+          sessionStorage.removeItem('logoutInProgress')
+          doLogout()
+        })
+    } else {
+      doLogout()
+    }
   }
+
+  const doLogout = () => {
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('user')
+    setIsAuthenticated(false)
+    setUserRole('')
+    setSelectedPage('Dashboard')
+    setSearchParams({}, { replace: true })
+    setSessionStartAt(null)
+    setSessionElapsedSeconds(0)
+  }
+
+  // Track current login session study time (from login until logout) for students.
+  useEffect(() => {
+    if (!isAuthenticated || userRole !== 'student' || !sessionStartAt) return
+
+    const interval = window.setInterval(() => {
+      const seconds = Math.max(0, Math.floor((Date.now() - sessionStartAt) / 1000))
+      const next = Math.min(SESSION_LIMIT_SECONDS, seconds)
+      setSessionElapsedSeconds(next)
+      if (next >= SESSION_LIMIT_SECONDS) {
+        window.clearInterval(interval)
+        handleLogout()
+      }
+    }, 1000)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [isAuthenticated, userRole, sessionStartAt])
 
   const handlePageSelect = (page: string) => {
     if (page === 'Logout') {
@@ -151,13 +211,16 @@ const App: React.FC = () => {
       case 'Performance Analytics':
         return <PerformanceAnalytics />
       case 'Performance Predictor':
-        return <PredictedGrade />
+        return (
+          <PredictedGrade
+            sessionElapsedSeconds={sessionElapsedSeconds}
+            sessionLimitSeconds={SESSION_LIMIT_SECONDS}
+          />
+        )
       case 'Modules':
         return <StudentModules />
       case 'Assessments':
         return <StudentAssessments />
-      case 'My Results':
-        return <MyResults />
       case 'Attendance':
         return <StudentAttendance />
       case 'Chat':
@@ -226,6 +289,8 @@ const App: React.FC = () => {
         return <SchemaManagement />
       case 'Study Resources':
         return <StudyResources />
+      case 'Approve Study Resources':
+        return <StudyResourceApproval />
       case 'Chat':
         return <SharedChat />
       case 'Chatbot Support':

@@ -57,6 +57,22 @@ const StudentPerformance: React.FC = () => {
     load()
   }, [])
 
+  const getPredictedGradeFromStatus = (status?: string): string | undefined => {
+    if (!status) return undefined
+    switch (status) {
+      case 'excellent':
+        return 'A'
+      case 'good':
+        return 'B'
+      case 'average':
+        return 'C'
+      case 'at-risk':
+        return 'D'
+      default:
+        return undefined
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'excellent':
@@ -259,22 +275,19 @@ const StudentPerformance: React.FC = () => {
                       Student
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
-                      Class
+                      Predicted Grade
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
-                      Avg Score
+                      Total Score
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
                       Attendance
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
-                      Assignments
+                      Class Participation
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
-                      Status
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>
-                      Action
+                      Study Hours
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -315,56 +328,51 @@ const StudentPerformance: React.FC = () => {
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{student.class}</TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Typography variant="body2" sx={{ color: THEME.textDark, fontWeight: 600 }}>
+                          {student.predictedGrade || getPredictedGradeFromStatus(student.status) || '—'}
+                        </Typography>
+                      </TableCell>
                       <TableCell sx={{ py: 1.5 }}>
                         <Chip
-                          label={`${student.avgScore}%`}
+                          label={
+                            student.totalScore != null
+                              ? `${student.totalScore.toFixed(1).replace(/\.0$/, '')}%`
+                              : student.avgScore != null
+                                ? `${student.avgScore.toFixed(1).replace(/\.0$/, '')}%`
+                                : '—'
+                          }
                           size="small"
                           sx={{
                             borderRadius: 0,
                             fontWeight: 600,
                             bgcolor:
-                              student.avgScore >= 80
+                              (student.totalScore ?? student.avgScore ?? 0) >= 80
                                 ? '#dcfce7'
-                                : student.avgScore >= 60
+                                : (student.totalScore ?? student.avgScore ?? 0) >= 60
                                   ? '#fef3c7'
                                   : '#fee2e2',
                             color:
-                              student.avgScore >= 80
+                              (student.totalScore ?? student.avgScore ?? 0) >= 80
                                 ? '#15803d'
-                                : student.avgScore >= 60
+                                : (student.totalScore ?? student.avgScore ?? 0) >= 60
                                   ? '#92400e'
                                   : '#991b1b',
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{student.attendance}%</TableCell>
-                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{student.assignments}</TableCell>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Chip
-                          label={student.status}
-                          size="small"
-                          sx={{
-                            borderRadius: 0,
-                            bgcolor: getStatusColor(student.status).bg,
-                            color: getStatusColor(student.status).color,
-                            textTransform: 'capitalize',
-                            fontWeight: 500,
-                          }}
-                        />
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>
+                        {student.attendance != null ? `${student.attendance}%` : '—'}
                       </TableCell>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: THEME.primary,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            '&:hover': { textDecoration: 'underline' },
-                          }}
-                        >
-                          View Details
-                        </Typography>
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>
+                        {student.classParticipation != null
+                          ? `${student.classParticipation.toFixed(1).replace(/\.0$/, '')}%`
+                          : '—'}
+                      </TableCell>
+                      <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>
+                        {student.studyHours != null
+                          ? `${student.studyHours.toFixed(1).replace(/\.0$/, '')} h`
+                          : '—'}
                       </TableCell>
                     </TableRow>
                   ))}
