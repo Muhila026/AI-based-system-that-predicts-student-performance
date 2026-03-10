@@ -1,7 +1,6 @@
 # Student Performance Grade Prediction - Logistic Regression
 
 import pandas as pd
-import numpy as np
 import os
 import joblib
 import warnings
@@ -167,11 +166,17 @@ model = LogisticRegression(
 
 # --- Cross-Validation (5-Fold) ---
 print("\n  --- 5-Fold Stratified Cross-Validation ---")
-print("  (Using a stratified sample of 50,000 for CV speed)\n")
 
-cv_sample_size = 50000
+max_cv_samples = 50000
+cv_train_size = min(max_cv_samples, len(X_train))
+print(f"  (Using a stratified sample of {cv_train_size:,} for CV speed)\n")
+
 X_cv, _, y_cv, _ = train_test_split(
-    X_train, y_train, train_size=cv_sample_size, random_state=42, stratify=y_train
+    X_train,
+    y_train,
+    train_size=cv_train_size,
+    random_state=42,
+    stratify=y_train,
 )
 
 cv_strategy = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -189,9 +194,8 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 print("Done!")
 
-# =============================================================================
 # Step 5: Evaluate Logistic Regression Model
-# =============================================================================
+
 print("\n" + "=" * 65)
 print("  STEP 5: EVALUATE LOGISTIC REGRESSION MODEL")
 print("=" * 65)
@@ -238,9 +242,7 @@ for i, label in enumerate(grade_labels):
 print(f"  {'-'*44}")
 print(f"  {'Weighted':>8}{prec_w:>12.4f}{rec_w:>12.4f}{f1_w:>12.4f}")
 
-# =============================================================================
 # Save Model
-# =============================================================================
 print(f"\n  MODEL: Logistic Regression (Accuracy: {acc:.4f})")
 
 model_dir = os.path.dirname(__file__)
