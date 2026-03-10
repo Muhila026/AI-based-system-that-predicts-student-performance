@@ -10,17 +10,21 @@ import {
   Chip,
   Divider,
   CircularProgress,
+  Alert,
+  IconButton,
+  InputAdornment,
 } from '@mui/material'
 import {
   Person,
   Email,
-  Phone,
-  School,
   Edit,
   Save,
+  Lock,
+  Visibility,
+  VisibilityOff,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
-import { getTeacherProfile, saveTeacherProfile, type TeacherProfile } from '../../lib/api'
+import { getTeacherProfile, saveTeacherProfile, changePassword, type TeacherProfile } from '../../lib/api'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -34,7 +38,14 @@ const TeacherProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [profileData, setProfileData] = useState<
     TeacherProfile & { subjects: string[] }
   >({
@@ -81,6 +92,7 @@ const TeacherProfile: React.FC = () => {
     try {
       setSaving(true)
       setError(null)
+      setSuccessMessage(null)
       const updated = await saveTeacherProfile(profileData)
       setProfileData({
         fullName: updated.fullName || profileData.fullName,
@@ -92,11 +104,31 @@ const TeacherProfile: React.FC = () => {
         subjects: updated.subjects || profileData.subjects,
       })
       setIsEditing(false)
+      setSuccessMessage('Profile saved successfully.')
     } catch (err: any) {
       console.error('Failed to save teacher profile:', err)
       setError(err?.message || 'Failed to save profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'Current password and new password (min 6 characters) required.' })
+      return
+    }
+    setPasswordSaving(true)
+    setPasswordMessage(null)
+    try {
+      await changePassword(currentPassword, newPassword)
+      setCurrentPassword('')
+      setNewPassword('')
+      setPasswordMessage({ type: 'success', text: 'Password changed successfully.' })
+    } catch (e: any) {
+      setPasswordMessage({ type: 'error', text: e?.message || 'Failed to change password.' })
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -111,10 +143,15 @@ const TeacherProfile: React.FC = () => {
         </Typography>
       </Box>
 
+      {successMessage && (
+        <Alert severity="success" onClose={() => setSuccessMessage(null)} sx={{ mb: 2 }}>
+          {successMessage}
+        </Alert>
+      )}
       {error && (
-        <Typography variant="body2" color="error" mb={2}>
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
           {error}
-        </Typography>
+        </Alert>
       )}
 
       {loading ? (
@@ -149,25 +186,18 @@ const TeacherProfile: React.FC = () => {
               <Typography variant="h6" fontWeight="bold" mb={0.5} sx={{ color: THEME.textDark }}>
                 {profileData.fullName}
               </Typography>
-              <Typography variant="body2" sx={{ color: THEME.muted }} mb={1}>
-                {profileData.teacherId}
-              </Typography>
-              <Chip label={profileData.department} sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, mb: 2, borderRadius: 0 }} />
+              {profileData.teacherId && (
+                <Typography variant="caption" sx={{ color: THEME.muted, display: 'block', mb: 1 }}>
+                  {profileData.teacherId}
+                </Typography>
+              )}
 
               <Divider sx={{ my: 2, borderColor: THEME.primaryBorder }} />
 
               <Box textAlign="left">
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                <Box display="flex" alignItems="center" gap={1}>
                   <Email fontSize="small" sx={{ color: THEME.muted }} />
                   <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.email}</Typography>
-                </Box>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Phone fontSize="small" sx={{ color: THEME.muted }} />
-                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.phone}</Typography>
-                </Box>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <School fontSize="small" sx={{ color: THEME.muted }} />
-                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.experience} experience</Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -212,55 +242,94 @@ const TeacherProfile: React.FC = () => {
                 />
                 <TextField
                   fullWidth
-                  label="Teacher ID"
-                  value={profileData.teacherId}
-                  disabled
-                />
-                <TextField
-                  fullWidth
-                  label="Email Address"
+                  label="Email"
                   value={profileData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
                   disabled
                   InputProps={{
                     startAdornment: <Email sx={{ mr: 1, color: 'action.active' }} />,
                   }}
                 />
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={profileData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  disabled={!isEditing || saving}
-                  InputProps={{
-                    startAdornment: <Phone sx={{ mr: 1, color: 'action.active' }} />,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Department"
-                  value={profileData.department}
-                  onChange={(e) => handleInputChange('department', e.target.value)}
-                  disabled={!isEditing || saving}
-                />
-                <TextField
-                  fullWidth
-                  label="Experience"
-                  value={profileData.experience}
-                  onChange={(e) => handleInputChange('experience', e.target.value)}
-                  disabled={!isEditing || saving}
-                />
               </Box>
 
               <Box mt={3}>
                 <Typography variant="body2" fontWeight="bold" mb={1}>
-                  Subjects Teaching:
+                  Subjects Teaching
                 </Typography>
                 <Box display="flex" gap={1} flexWrap="wrap">
-                  {profileData.subjects.map((subject, index) => (
-                    <Chip key={index} label={subject} sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, borderRadius: 0 }} />
-                  ))}
+                  {profileData.subjects.length === 0 ? (
+                    <Typography variant="body2" sx={{ color: THEME.muted }}>None assigned</Typography>
+                  ) : (
+                    profileData.subjects.map((subject, index) => (
+                      <Chip key={index} label={subject} sx={{ bgcolor: THEME.primaryLight, color: THEME.primary, borderRadius: 0 }} />
+                    ))
+                  )}
                 </Box>
+              </Box>
+
+              <Divider sx={{ my: 3, borderColor: THEME.primaryBorder }} />
+
+              <Typography variant="subtitle1" fontWeight="600" sx={{ color: THEME.textDark, mb: 2 }}>
+                Change password
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Current password"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  InputProps={{
+                    startAdornment: <Lock sx={{ mr: 1, color: 'action.active' }} />,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowCurrentPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                        >
+                          {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="New password (min 6 characters)"
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowNewPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                        >
+                          {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleChangePassword}
+                  disabled={passwordSaving}
+                  sx={{ alignSelf: 'flex-start', borderRadius: 0, borderColor: THEME.primary, color: THEME.primary, '&:hover': { borderColor: '#1e40af', bgcolor: THEME.primaryLight } }}
+                >
+                  {passwordSaving ? 'Saving...' : 'Change password'}
+                </Button>
+                {passwordMessage && (
+                  <Typography variant="body2" sx={{ color: passwordMessage.type === 'success' ? 'success.main' : 'error.main' }}>
+                    {passwordMessage.text}
+                  </Typography>
+                )}
               </Box>
             </CardContent>
           </Card>

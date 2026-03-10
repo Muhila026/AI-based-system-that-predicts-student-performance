@@ -389,6 +389,27 @@ export async function getMyStudyLogs(days: number = 30): Promise<StudyLogItem[]>
   }
 }
 
+/** Record study hours from login-to-logout session. Call on logout. */
+export async function recordSessionStudyLog(): Promise<{ weeklyHours?: number } | void> {
+  try {
+    return await apiRequest<{ weeklyHours?: number }>('/study-logs/me/from-session', { method: 'POST' })
+  } catch (e) {
+    console.error('recordSessionStudyLog', e)
+  }
+}
+
+export type WeeklyStudySum = { weeklyHours: number; weeklyMinimum: number }
+
+/** Sum of study hours in the last 7 days; weekly minimum is 3h. */
+export async function getWeeklyStudySum(): Promise<WeeklyStudySum | null> {
+  try {
+    return await apiRequest<WeeklyStudySum>('/study-logs/me/weekly-sum')
+  } catch (e) {
+    console.error('getWeeklyStudySum', e)
+    return null
+  }
+}
+
 export type AttendanceWithPercentage = {
   id: number
   student_id: number

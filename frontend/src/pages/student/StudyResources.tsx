@@ -92,60 +92,24 @@ const StudentStudyResources: React.FC = () => {
           Study Resources
         </Typography>
         <Typography variant="body2" sx={{ color: THEME.muted }}>
-          Download learning materials shared by your teachers
+          Learning materials from your teachers
         </Typography>
       </Box>
 
       {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="280px">
           <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : resources.length === 0 ? (
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
           <CardContent>
-            <Typography variant="body1" sx={{ color: THEME.muted }} textAlign="center" py={4}>
-              No study resources available yet.
+            <Typography variant="body2" sx={{ color: THEME.muted }} textAlign="center" py={4}>
+              No resources yet.
             </Typography>
           </CardContent>
         </Card>
       ) : (
-        <>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
-            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, bgcolor: THEME.primaryLight }}>
-              <CardContent sx={{ py: 2, px: 2 }}>
-                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.primary }}>
-                  {resources.length}
-                </Typography>
-                <Typography variant="body2" sx={{ color: THEME.muted }}>Total Resources</Typography>
-              </CardContent>
-            </Card>
-            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-              <CardContent sx={{ py: 2, px: 2 }}>
-                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-                  {resources.filter((r) => r.type === 'PDF').length}
-                </Typography>
-                <Typography variant="body2" sx={{ color: THEME.muted }}>PDFs</Typography>
-              </CardContent>
-            </Card>
-            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-              <CardContent sx={{ py: 2, px: 2 }}>
-                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-                  {resources.filter((r) => r.type === 'Video').length}
-                </Typography>
-                <Typography variant="body2" sx={{ color: THEME.muted }}>Videos</Typography>
-              </CardContent>
-            </Card>
-            <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-              <CardContent sx={{ py: 2, px: 2 }}>
-                <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-                  {resources.reduce((sum, r) => sum + (r.downloads || 0), 0)}
-                </Typography>
-                <Typography variant="body2" sx={{ color: THEME.muted }}>Total Downloads</Typography>
-              </CardContent>
-            </Card>
-          </Box>
-
-          <Box display="grid" gap={2}>
+        <Box display="grid" gap={2}>
             {resources.map((resource, index) => (
               <motion.div
                 key={resource.id}
@@ -176,19 +140,19 @@ const StudentStudyResources: React.FC = () => {
                           </Typography>
                           <Box display="flex" gap={2} mt={0.5} flexWrap="wrap">
                             <Typography variant="caption" sx={{ color: THEME.muted }}>
-                              📚 {resource.class_name}
+                              {resource.class_name}
                             </Typography>
                             <Typography variant="caption" sx={{ color: THEME.muted }}>
-                              📦 {resource.size}
+                              {resource.size}
                             </Typography>
                             <Typography variant="caption" sx={{ color: THEME.muted }}>
-                              📅 {resource.uploadDate}
+                              {resource.uploadDate}
                             </Typography>
                             <Typography variant="caption" sx={{ color: THEME.muted }}>
-                              👤 {resource.teacherName || '—'}
+                              {resource.teacherName || '—'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: THEME.muted }}>
-                              ⬇️ {resource.downloads ?? 0} downloads
+                              {resource.downloads ?? 0} downloads
                             </Typography>
                           </Box>
                         </Box>
@@ -231,8 +195,7 @@ const StudentStudyResources: React.FC = () => {
                 </Card>
               </motion.div>
             ))}
-          </Box>
-        </>
+        </Box>
       )}
     </Box>
   )

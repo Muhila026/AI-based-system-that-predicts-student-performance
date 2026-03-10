@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Full Backend API",
-    "description": "Complete Postman collection for all backend APIs (Auth, Courses, Teachers, Chat, Content, Admin, Student Performance ML, Pipeline, Health).",
+    "description": "Postman collection for backend APIs: Auth, Courses, Teachers, Chat, Admin, Study Logs, Participation, Prediction, Assignment Submissions, Attendance, Pipeline, Health. Default admin: cloudcampus2002@gmail.com / Cloud@2002.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -53,7 +53,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"cloudcampus2002@gmail.com\",\n  \"password\": \"Muhila@2002\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"cloudcampus2002@gmail.com\",\n  \"password\": \"Cloud@2002\"\n}" },
             "url": "{{base_url}}/api/v1/auth/login"
           }
         },
@@ -238,28 +238,6 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"userEmail\": \"student@edu.com\",\n  \"amount\": 100\n}" },
             "url": "{{base_url}}/api/v1/course-payments/"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Theory & Techniques",
-      "item": [
-        { "name": "List Theory", "request": { "method": "GET", "url": "{{base_url}}/api/v1/theory/" } },
-        { "name": "List Techniques", "request": { "method": "GET", "url": "{{base_url}}/api/v1/techniques/" } }
-      ]
-    },
-    {
-      "name": "Challenges",
-      "item": [
-        { "name": "List Challenges", "request": { "method": "GET", "url": "{{base_url}}/api/v1/challenges/" } },
-        {
-          "name": "Create Challenge",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"challengeName\": \"Quiz 1\",\n  \"description\": \"Test\",\n  \"level\": \"easy\",\n  \"points\": 10\n}" },
-            "url": "{{base_url}}/api/v1/challenges/"
           }
         }
       ]

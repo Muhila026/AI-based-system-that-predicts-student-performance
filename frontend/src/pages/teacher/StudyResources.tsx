@@ -16,7 +16,6 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Alert,
 } from '@mui/material'
 import CenteredMessage from '../../components/CenteredMessage'
 import {
@@ -29,7 +28,16 @@ import {
   Download,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
-import { getStudyResources, uploadStudyResource, deleteStudyResource, downloadStudyResource, type StudyResource } from '../../lib/api'
+import {
+  getStudyResources,
+  uploadStudyResource,
+  deleteStudyResource,
+  downloadStudyResource,
+  getSchemaSubjects,
+  getCourses,
+  getTeacherMySubjects,
+  type StudyResource,
+} from '../../lib/api'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -56,9 +64,30 @@ const StudyResources: React.FC = () => {
     type: '',
     description: '',
   })
+  const [classOptions, setClassOptions] = useState<string[]>([])
 
   useEffect(() => {
     loadResources()
+  }, [])
+
+  useEffect(() => {
+    const loadClassOptions = async () => {
+      try {
+        const [schemaSubjects, courses, mySubjects] = await Promise.all([
+          getSchemaSubjects(),
+          getCourses(),
+          getTeacherMySubjects(),
+        ])
+        const fromSchema = (schemaSubjects || []).map((s) => (s as { subject_name?: string }).subject_name).filter(Boolean) as string[]
+        const fromCourses = (courses || []).map((c) => (c as { name?: string }).name).filter(Boolean) as string[]
+        const fromMySubjects = (mySubjects || []).map((s) => (s as { subject_name?: string }).subject_name).filter(Boolean) as string[]
+        const combined = [...new Set([...fromMySubjects, ...fromSchema, ...fromCourses])].filter(Boolean).sort()
+        setClassOptions(combined)
+      } catch {
+        setClassOptions([])
+      }
+    }
+    loadClassOptions()
   }, [])
 
   const loadResources = async () => {
@@ -79,7 +108,7 @@ const StudyResources: React.FC = () => {
   }
 
   const getFileIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+    switch ((type || '').toLowerCase()) {
       case 'pdf':
         return <PictureAsPdf sx={{ color: '#ef4444' }} />
       case 'video':
@@ -200,7 +229,7 @@ const StudyResources: React.FC = () => {
             Study Resources
           </Typography>
           <Typography variant="body2" sx={{ color: THEME.muted }}>
-            Upload and manage learning materials for your students
+            Upload and manage learning materials
           </Typography>
         </Box>
         <Button
@@ -221,52 +250,15 @@ const StudyResources: React.FC = () => {
         </Button>
       </Box>
 
-      {/* Stats */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, bgcolor: THEME.primaryLight }}>
-          <CardContent sx={{ py: 2, px: 2 }}>
-            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.primary }}>
-              {resources.length}
-            </Typography>
-            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Resources</Typography>
-          </CardContent>
-        </Card>
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-          <CardContent sx={{ py: 2, px: 2 }}>
-            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-              {resources.filter(r => r.type === 'PDF').length}
-            </Typography>
-            <Typography variant="body2" sx={{ color: THEME.muted }}>PDF Documents</Typography>
-          </CardContent>
-        </Card>
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-          <CardContent sx={{ py: 2, px: 2 }}>
-            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-              {resources.filter(r => r.type === 'Video').length}
-            </Typography>
-            <Typography variant="body2" sx={{ color: THEME.muted }}>Video Lectures</Typography>
-          </CardContent>
-        </Card>
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
-          <CardContent sx={{ py: 2, px: 2 }}>
-            <Typography variant="h4" fontWeight="700" sx={{ color: THEME.textDark }}>
-              {resources.reduce((sum, r) => sum + (r.downloads || 0), 0)}
-            </Typography>
-            <Typography variant="body2" sx={{ color: THEME.muted }}>Total Downloads</Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* Resources List */}
       {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="280px">
           <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : resources.length === 0 ? (
-        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}` }}>
+        <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
           <CardContent>
-            <Typography variant="body1" sx={{ color: THEME.muted }} textAlign="center" py={4}>
-              No study resources uploaded yet. Click "Upload Resource" to get started.
+            <Typography variant="body2" sx={{ color: THEME.muted }} textAlign="center" py={4}>
+              No resources yet. Use Upload Resource to add materials.
             </Typography>
           </CardContent>
         </Card>
@@ -302,16 +294,16 @@ const StudyResources: React.FC = () => {
                         </Typography>
                         <Box display="flex" gap={2} mt={0.5} flexWrap="wrap">
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
-                            📚 {resource.class_name}
+                            {resource.class_name}
                           </Typography>
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
-                            📦 {resource.size}
+                            {resource.size}
                           </Typography>
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
-                            📅 {resource.uploadDate}
+                            {resource.uploadDate}
                           </Typography>
                           <Typography variant="caption" sx={{ color: THEME.muted }}>
-                            ⬇️ {resource.downloads ?? 0} downloads
+                            {resource.downloads ?? 0} downloads
                           </Typography>
                         </Box>
                       </Box>
@@ -374,19 +366,30 @@ const StudyResources: React.FC = () => {
               value={newResource.title}
               onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
             />
-            <FormControl fullWidth>
-              <InputLabel>Class</InputLabel>
-              <Select
+            {classOptions.length > 0 ? (
+              <FormControl fullWidth>
+                <InputLabel>Subject / Class</InputLabel>
+                <Select
+                  value={newResource.class}
+                  label="Subject / Class"
+                  onChange={(e) => setNewResource({ ...newResource, class: e.target.value })}
+                >
+                  {classOptions.map((opt) => (
+                    <MenuItem key={opt} value={opt}>
+                      {opt}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <TextField
+                fullWidth
+                label="Subject / Class"
                 value={newResource.class}
-                label="Class"
                 onChange={(e) => setNewResource({ ...newResource, class: e.target.value })}
-              >
-                <MenuItem value="Math A">Math A</MenuItem>
-                <MenuItem value="Physics B">Physics B</MenuItem>
-                <MenuItem value="Chemistry C">Chemistry C</MenuItem>
-                <MenuItem value="Biology D">Biology D</MenuItem>
-              </Select>
-            </FormControl>
+                placeholder="Enter subject or class name"
+              />
+            )}
             <FormControl fullWidth>
               <InputLabel>Resource Type</InputLabel>
               <Select

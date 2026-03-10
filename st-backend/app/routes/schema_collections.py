@@ -679,7 +679,7 @@ async def submit_assignment_pdf(
     file: UploadFile = File(...),
     user: dict = Depends(require_role(["student"])),
 ):
-    """Student uploads their assignment as PDF. One submission per student per assignment (replaces if resubmit)."""
+    """Student uploads their assignment as PDF. Only one submission per student per assignment; duplicate uploads are rejected."""
     db = get_database()
     email = (user.get("email") or "").strip()
     if not email:
@@ -689,6 +689,14 @@ async def submit_assignment_pdf(
         raise HTTPException(status_code=404, detail="Assignment not found")
     if not await _student_enrolled_in_subject(db, email, doc.get("subject_id")):
         raise HTTPException(status_code=403, detail="You are not enrolled in this subject")
+    existing = await db.assignment_submissions.find_one(
+        {"assignment_id": assignment_id, "userEmail": email}
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="You have already submitted for this assignment. Only one submission per assignment is allowed.",
+        )
     fn = (file.filename or "").lower()
     ct = (file.content_type or "").lower()
     if not (fn.endswith(".pdf") or ct == "application/pdf"):
@@ -704,19 +712,7 @@ async def submit_assignment_pdf(
     max_marks = float(doc.get("max_marks", 100))
     now = _now_iso()
     student_id_hash = abs(hash(email)) % 1000000
-    existing = await db.assignment_submissions.find_one(
-        {"assignment_id": assignment_id, "userEmail": email}
-    )
-    if existing:
-        updates = {"submission_pdf_path": submission_pdf_path, "submitted_at": now}
-        if not existing.get("id"):
-            updates["id"] = str(uuid.uuid4())
-        await db.assignment_submissions.update_one(
-            {"assignment_id": assignment_id, "userEmail": email},
-            {"$set": updates},
-        )
-    else:
-        await db.assignment_submissions.insert_one({
+    await db.assignment_submissions.insert_one({
             "id": str(uuid.uuid4()),
             "assignment_id": assignment_id,
             "student_id": student_id_hash,

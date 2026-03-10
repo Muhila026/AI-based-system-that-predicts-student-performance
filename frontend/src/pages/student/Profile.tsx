@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Avatar,
-  Chip,
   Divider,
   IconButton,
   InputAdornment,
@@ -16,9 +15,6 @@ import {
 import {
   Person,
   Email,
-  Phone,
-  School,
-  LocationOn,
   Edit,
   Save,
   Lock,
@@ -144,30 +140,39 @@ const Profile: React.FC = () => {
     }
   }
 
+  const THEME = {
+    primary: '#1e3a8a',
+    primaryLight: '#EFF6FF',
+    primaryBorder: '#DBEAFE',
+    muted: '#6b7280',
+    textDark: '#1f2937',
+  }
+
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" mb={1}>
-        Profile & Settings
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Manage your personal information
-      </Typography>
+    <Box sx={{ fontFamily: "'Poppins', sans-serif" }}>
+      <Box sx={{ mb: 3, pb: 3, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+        <Typography variant="h5" fontWeight="700" sx={{ color: THEME.textDark, letterSpacing: '-0.02em', mb: 0.5 }}>
+          Profile & Settings
+        </Typography>
+        <Typography variant="body2" sx={{ color: THEME.muted }}>
+          Your account information
+        </Typography>
+      </Box>
 
       {profileError && (
-        <Typography variant="body2" color="error" mb={2}>
+        <Typography variant="body2" sx={{ color: '#991b1b', mb: 2 }}>
           {profileError}
         </Typography>
       )}
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
+          <CircularProgress sx={{ color: THEME.primary }} />
         </Box>
       ) : (
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 2fr' }} gap={3}>
-        {/* Profile Info Card */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <motion.div
                 initial={{ scale: 0 }}
@@ -178,53 +183,36 @@ const Profile: React.FC = () => {
                   sx={{
                     width: 120,
                     height: 120,
-                    bgcolor: '#6366f1',
+                    bgcolor: THEME.primary,
                     margin: '0 auto',
                     mb: 2,
                   }}
                 >
-                  {profileData.fullName.charAt(0).toUpperCase()}
+                  {profileData.fullName ? profileData.fullName.charAt(0).toUpperCase() : 'S'}
                 </Avatar>
               </motion.div>
 
-              <Typography variant="h6" fontWeight="bold" mb={0.5}>
-                {profileData.fullName}
+              <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }} mb={0.5}>
+                {profileData.fullName || 'Student'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
-                {profileData.studentId}
-              </Typography>
-              <Chip
-                label={`${profileData.year} - ${profileData.major}`}
-                sx={{ bgcolor: '#e0e7ff', color: '#3730a3', mb: 2 }}
-              />
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 2, borderColor: THEME.primaryBorder }} />
 
               <Box textAlign="left">
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Email fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.email}</Typography>
-                </Box>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Phone fontSize="small" color="action" />
-                  <Typography variant="body2">{profileData.phone}</Typography>
-                </Box>
                 <Box display="flex" alignItems="center" gap={1}>
-                  <School fontSize="small" color="action" />
-                  <Typography variant="body2">GPA: {profileData.gpa}</Typography>
+                  <Email fontSize="small" sx={{ color: THEME.muted }} />
+                  <Typography variant="body2" sx={{ color: THEME.textDark }}>{profileData.email}</Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
-
         </Box>
 
-        {/* Edit Profile Form */}
         <Box>
-          <Card>
+          <Card elevation={0} sx={{ border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h6" fontWeight="bold">
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} sx={{ pb: 2, borderBottom: `1px solid ${THEME.primaryBorder}` }}>
+                <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                   Personal Information
                 </Typography>
                 {!isEditing ? (
@@ -232,16 +220,18 @@ const Profile: React.FC = () => {
                     variant="contained"
                     startIcon={<Edit />}
                     onClick={() => setIsEditing(true)}
+                    disabled={saving}
+                    sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}
                   >
                     Edit Profile
                   </Button>
                 ) : (
                   <Box display="flex" gap={1}>
-                    <Button variant="outlined" onClick={() => setIsEditing(false)}>
+                    <Button variant="outlined" onClick={() => setIsEditing(false)} disabled={saving} sx={{ borderRadius: 0, borderColor: THEME.primaryBorder, color: THEME.primary }}>
                       Cancel
                     </Button>
-                    <Button variant="contained" startIcon={<Save />} onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving...' : 'Save Changes'}
+                    <Button variant="contained" startIcon={<Save />} onClick={handleSave} disabled={saving} sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}>
+                      {saving ? 'Saving...' : 'Save'}
                     </Button>
                   </Box>
                 )}
@@ -253,78 +243,30 @@ const Profile: React.FC = () => {
                   label="Full Name"
                   value={profileData.fullName}
                   onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  disabled={!isEditing}
+                  disabled={!isEditing || saving}
                   InputProps={{
                     startAdornment: <Person sx={{ mr: 1, color: 'action.active' }} />,
                   }}
                 />
                 <TextField
                   fullWidth
-                  label="Student ID"
-                  value={profileData.studentId}
-                  disabled
-                />
-                <TextField
-                  fullWidth
-                  label="Email Address"
+                  label="Email"
                   value={profileData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  disabled={!isEditing}
+                  disabled={!isEditing || saving}
                   InputProps={{
                     startAdornment: <Email sx={{ mr: 1, color: 'action.active' }} />,
                   }}
                 />
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={profileData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  disabled={!isEditing}
-                  InputProps={{
-                    startAdornment: <Phone sx={{ mr: 1, color: 'action.active' }} />,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Major"
-                  value={profileData.major}
-                  onChange={(e) => handleInputChange('major', e.target.value)}
-                  disabled={!isEditing}
-                  InputProps={{
-                    startAdornment: <School sx={{ mr: 1, color: 'action.active' }} />,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Academic Year"
-                  value={profileData.year}
-                  onChange={(e) => handleInputChange('year', e.target.value)}
-                  disabled={!isEditing}
-                />
-                <Box gridColumn={{ xs: 'span 1', md: 'span 2' }}>
-                  <TextField
-                    fullWidth
-                    label="Address"
-                    value={profileData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    disabled={!isEditing}
-                    multiline
-                    rows={2}
-                    InputProps={{
-                      startAdornment: <LocationOn sx={{ mr: 1, color: 'action.active' }} />,
-                    }}
-                  />
-                </Box>
               </Box>
             </CardContent>
           </Card>
 
-          {/* Change password */}
-          <Card sx={{ mt: 3 }}>
+          <Card elevation={0} sx={{ mt: 3, border: `1px solid ${THEME.primaryBorder}`, borderRadius: 0 }}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <Lock color="action" />
-                <Typography variant="h6" fontWeight="bold">
+                <Lock sx={{ color: THEME.primary }} />
+                <Typography variant="h6" fontWeight="600" sx={{ color: THEME.textDark }}>
                   Change password
                 </Typography>
               </Box>
@@ -373,7 +315,12 @@ const Profile: React.FC = () => {
                     ),
                   }}
                 />
-                <Button variant="contained" onClick={handleChangePassword} disabled={passwordSaving}>
+                <Button
+                  variant="contained"
+                  onClick={handleChangePassword}
+                  disabled={passwordSaving}
+                  sx={{ borderRadius: 0, bgcolor: THEME.primary, '&:hover': { bgcolor: '#1e40af' } }}
+                >
                   {passwordSaving ? 'Saving...' : 'Change password'}
                 </Button>
               </Box>

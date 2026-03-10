@@ -46,6 +46,8 @@ const StudentAssessments: React.FC = () => {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
+  const submittedAssignmentIds = new Set(submissions.map((s) => s.assignment_id))
+
   const load = async () => {
     setLoading(true)
     setError(null)
@@ -162,6 +164,7 @@ const StudentAssessments: React.FC = () => {
                 <TableBody>
                   {assignments.map((row) => {
                     const isUploading = uploadingId === row.id
+                    const alreadySubmitted = submittedAssignmentIds.has(row.id)
                     return (
                       <TableRow
                         key={row.id}
@@ -187,22 +190,28 @@ const StudentAssessments: React.FC = () => {
                         </TableCell>
                         <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{row.max_marks}</TableCell>
                         <TableCell sx={{ py: 1.5 }}>
-                          <input
-                            type="file"
-                            ref={(el) => { fileInputRefs.current[row.id] = el }}
-                            style={{ display: 'none' }}
-                            onChange={(e) => handleFileChange(row.id, e)}
-                          />
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={isUploading ? <CircularProgress size={16} /> : <UploadIcon />}
-                            disabled={isUploading}
-                            onClick={() => handleUploadClick(row.id)}
-                            sx={{ borderRadius: 0 }}
-                          >
-                            {isUploading ? 'Uploading…' : 'Upload PDF'}
-                          </Button>
+                          {alreadySubmitted ? (
+                            <Chip label="Already submitted" size="small" sx={{ borderRadius: 0, bgcolor: '#dcfce7', color: '#15803d' }} />
+                          ) : (
+                            <>
+                              <input
+                                type="file"
+                                ref={(el) => { fileInputRefs.current[row.id] = el }}
+                                style={{ display: 'none' }}
+                                onChange={(e) => handleFileChange(row.id, e)}
+                              />
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={isUploading ? <CircularProgress size={16} /> : <UploadIcon />}
+                                disabled={isUploading}
+                                onClick={() => handleUploadClick(row.id)}
+                                sx={{ borderRadius: 0 }}
+                              >
+                                {isUploading ? 'Uploading…' : 'Upload PDF'}
+                              </Button>
+                            </>
+                          )}
                         </TableCell>
                       </TableRow>
                     )

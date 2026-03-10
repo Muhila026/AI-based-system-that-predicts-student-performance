@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   IconButton,
   TextField,
   InputAdornment,
@@ -146,8 +145,6 @@ const ManageStudents: React.FC = () => {
                   <TableRow sx={{ borderBottom: `2px solid ${THEME.primaryBorder}` }}>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Student</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Email</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Joined</TableCell>
                     <TableCell sx={{ fontWeight: 600, color: THEME.textDark, py: 1.5 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -161,10 +158,6 @@ const ManageStudents: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ color: THEME.textDark, py: 1.5 }}>{student.email}</TableCell>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Chip label={student.status} size="small" sx={{ borderRadius: 0, bgcolor: student.status === 'Active' ? '#dcfce7' : '#f3f4f6', color: student.status === 'Active' ? '#15803d' : THEME.muted }} />
-                      </TableCell>
-                      <TableCell sx={{ color: THEME.muted, py: 1.5 }}>{student.joinedDate}</TableCell>
                       <TableCell sx={{ py: 1.5 }}>
                         <IconButton size="small" onClick={() => handleViewDetails(student.email)} title="View Details" sx={{ color: THEME.primary }}>
                           <Visibility fontSize="small" />

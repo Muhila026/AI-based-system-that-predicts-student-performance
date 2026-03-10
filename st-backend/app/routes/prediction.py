@@ -145,6 +145,74 @@ async def list_my_study_logs(
     return items
 
 
+WEEKLY_STUDY_HOURS_MIN = 3.0  # minimum required per week (from login/session + manual log)
+
+
+@study_logs_router.post("/me/from-session", response_model=StudentStudyLogResponse)
+async def create_study_log_from_session(user: dict = Depends(get_current_user)):
+    """
+    Create a study log from login-to-logout session time.
+    Uses the user's lastLoginAt; duration = now - lastLoginAt, stored as studyHours for today.
+    Call this on logout so weekly study hours include time spent logged in.
+    """
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    db = get_database()
+    user_doc = await db.users.find_one({"email": email}, {"lastLoginAt": 1})
+    last_login = user_doc.get("lastLoginAt") if user_doc else None
+    if not last_login:
+        raise HTTPException(status_code=400, detail="No login time found; cannot compute session")
+    try:
+        if isinstance(last_login, str):
+            s = last_login.replace("Z", "+00:00")
+            login_dt = datetime.fromisoformat(s)
+        else:
+            login_dt = last_login
+        if login_dt.tzinfo:
+            login_dt = login_dt.replace(tzinfo=None) + (login_dt.utcoffset() or timedelta(0))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid lastLoginAt format")
+    now = datetime.utcnow()
+    delta = now - login_dt
+    duration_hours = max(0.0, min(24.0, delta.total_seconds() / 3600.0))
+    if duration_hours < 1 / 60.0:
+        raise HTTPException(status_code=400, detail="Session too short to log (under 1 minute)")
+    date_str = now.date().isoformat()
+    log_id = str(uuid.uuid4())
+    now_iso = _now_iso()
+    doc = {
+        "id": log_id,
+        "userEmail": email,
+        "courseId": "",
+        "studyHours": round(duration_hours, 2),
+        "studyDate": date_str,
+        "notes": "From login session",
+        "isActive": True,
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+    }
+    await db.student_study_logs.insert_one(doc)
+    return StudentStudyLogResponse(**doc)
+
+
+@study_logs_router.get("/me/weekly-sum")
+async def get_weekly_study_sum(user: dict = Depends(get_current_user)):
+    """Sum of studyHours in the last 7 days (for weekly minimum 3h requirement)."""
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    since = (datetime.utcnow().date() - timedelta(days=7)).isoformat()
+    db = get_database()
+    cursor = db.student_study_logs.find(
+        {"userEmail": email, "isActive": True, "studyDate": {"$gte": since}}
+    )
+    total = 0.0
+    async for doc in cursor:
+        total += float(doc.get("studyHours", 0))
+    return {"weeklyHours": round(total, 2), "weeklyMinimum": WEEKLY_STUDY_HOURS_MIN}
+
+
 def _student_id_from_email(email: str) -> int:
     return abs(hash(email)) % 1000000
 

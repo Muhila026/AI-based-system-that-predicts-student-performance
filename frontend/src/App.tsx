@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Box } from '@mui/material'
 
 import Sidebar from './components/Sidebar'
-import Dashboard from './pages/student/Dashboard'
+import StudentDashboard from './pages/student/Dashboard'
 import PerformanceAnalytics from './pages/student/PerformanceAnalytics'
 import PredictedGrade from './pages/student/PredictedGrade'
 import StudentModules from './pages/student/Modules'
@@ -40,7 +40,7 @@ import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import VerifyOtp from './pages/VerifyOtp'
 import ResetPassword from './pages/ResetPassword'
-import { decodeJwtPayload } from './lib/api'
+import { decodeJwtPayload, recordSessionStudyLog } from './lib/api'
 
 interface UserData {
   email: string
@@ -120,12 +120,14 @@ const App: React.FC = () => {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('user')
-    sessionStorage.removeItem('user')
-    setIsAuthenticated(false)
-    setUserRole('')
-    setSelectedPage('Dashboard')
-    setSearchParams({}, { replace: true })
+    recordSessionStudyLog().catch(() => {}).finally(() => {
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+      setIsAuthenticated(false)
+      setUserRole('')
+      setSelectedPage('Dashboard')
+      setSearchParams({}, { replace: true })
+    })
   }
 
   const handlePageSelect = (page: string) => {
@@ -145,7 +147,7 @@ const App: React.FC = () => {
   const renderStudentPage = () => {
     switch (selectedPage) {
       case 'Dashboard':
-        return <Dashboard />
+        return <StudentDashboard onSelectPage={handlePageSelect} />
       case 'Performance Analytics':
         return <PerformanceAnalytics />
       case 'Performance Predictor':
@@ -169,7 +171,7 @@ const App: React.FC = () => {
       case 'Chatbot Support':
         return <ChatbotSupport />
       default:
-        return <Dashboard />
+        return <StudentDashboard />
     }
   }
 
