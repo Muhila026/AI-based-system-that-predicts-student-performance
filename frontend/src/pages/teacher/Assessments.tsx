@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Card,
@@ -21,7 +21,14 @@ import {
   Chip,
 } from '@mui/material'
 import CenteredMessage from '../../components/CenteredMessage'
-import { Add as AddIcon, Assignment as AssignmentIcon, List as ListIcon, GetApp as GetAppIcon } from '@mui/icons-material'
+import {
+  Add as AddIcon,
+  Assignment as AssignmentIcon,
+  List as ListIcon,
+  GetApp as GetAppIcon,
+  UploadFile as UploadFileIcon,
+  PictureAsPdf as PictureAsPdfIcon,
+} from '@mui/icons-material'
 import {
   getTeacherMySubjects,
   getSchemaAssignments,
@@ -30,10 +37,15 @@ import {
   getAssignmentSubmissions,
   gradeSubmission,
   getSubmissionPdfBlob,
+  uploadSchemaAssignmentPdf,
+  getAssignmentPdfBlob,
   type TeacherSubjectWithName,
   type SchemaSubjectAssignment,
   type AssignmentSubmissionItem,
 } from '../../lib/api'
+
+/** Max characters for description (questions/instructions). Backend has no hard limit; this keeps UI/API payloads reasonable. */
+const DESCRIPTION_MAX_CHARS = 20000
 
 const THEME = {
   primary: '#1e3a8a',
@@ -68,6 +80,12 @@ const TeacherAssessments: React.FC = () => {
   const [marksEdit, setMarksEdit] = useState<Record<string, string>>({})
   const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' })
+  /** PDF to attach when creating a new assignment (optional). */
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  /** Which assignment id is targeted by the hidden file input (upload/replace PDF). */
+  const [uploadAssignmentId, setUploadAssignmentId] = useState<string | null>(null)
+  const [uploadingPdf, setUploadingPdf] = useState(false)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadData()
@@ -106,14 +124,29 @@ const TeacherAssessments: React.FC = () => {
     setSubmitting(true)
     setError(null)
     try {
-      await createSchemaAssignment({
+      const created = await createSchemaAssignment({
         subject_id,
         title: title || 'Untitled',
         description: formData.description || undefined,
         max_marks: parseInt(formData.max_marks, 10) || 100,
         assignment_type: formData.assignment_type || 'ASSIGNMENT',
       })
+      if (pdfFile && created?.id) {
+        try {
+          await uploadSchemaAssignmentPdf(created.id, pdfFile)
+          setSnackbar({ open: true, message: 'Assessment created and question PDF uploaded.', severity: 'success' })
+        } catch (upErr: any) {
+          setSnackbar({
+            open: true,
+            message: upErr?.message || 'Created but PDF upload failed. You can upload PDF from the list.',
+            severity: 'error',
+          })
+        }
+      } else {
+        setSnackbar({ open: true, message: 'Assessment created.', severity: 'success' })
+      }
       setOpenDialog(false)
+      setPdfFile(null)
       setFormData({ subject_id: '', title: '', description: '', max_marks: '100', assignment_type: 'ASSIGNMENT' })
       await loadData()
     } catch (e: any) {
@@ -167,6 +200,47 @@ const TeacherAssessments: React.FC = () => {
       setSnackbar({ open: true, message: e?.message || 'Failed to save', severity: 'error' })
     } finally {
       setSavingSubmissionId(null)
+    }
+  }
+
+  const handleUploadPdfClick = (assignmentId: string) => {
+    setUploadAssignmentId(assignmentId)
+    pdfInputRef.current?.click()
+  }
+
+  const handlePdfInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !uploadAssignmentId) return
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+      setSnackbar({ open: true, message: 'Only PDF files are allowed.', severity: 'error' })
+      setUploadAssignmentId(null)
+      return
+    }
+    setUploadingPdf(true)
+    try {
+      await uploadSchemaAssignmentPdf(uploadAssignmentId, file)
+      setSnackbar({ open: true, message: 'Question PDF uploaded. Students can download it from their Assessments.', severity: 'success' })
+      await loadData()
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.message || 'PDF upload failed', severity: 'error' })
+    } finally {
+      setUploadingPdf(false)
+      setUploadAssignmentId(null)
+    }
+  }
+
+  const handleDownloadAssignmentPdf = async (assignmentId: string, title: string) => {
+    try {
+      const blob = await getAssignmentPdfBlob(assignmentId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(title || 'assignment').replace(/[^a-z0-9-_]/gi, '_')}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSnackbar({ open: true, message: 'No PDF uploaded for this assessment yet.', severity: 'error' })
     }
   }
 
@@ -292,6 +366,27 @@ const TeacherAssessments: React.FC = () => {
                         >
                           Submissions
                         </Button>
+                        {row.pdf_url ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<PictureAsPdfIcon />}
+                            onClick={() => handleDownloadAssignmentPdf(row.id, row.title || 'assignment')}
+                            sx={{ textTransform: 'none', mr: 1 }}
+                          >
+                            Question PDF
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<UploadFileIcon />}
+                          disabled={uploadingPdf}
+                          onClick={() => handleUploadPdfClick(row.id)}
+                          sx={{ textTransform: 'none', mr: 1 }}
+                        >
+                          {row.pdf_url ? 'Replace PDF' : 'Upload PDF'}
+                        </Button>
                         <Button
                           size="small"
                           color="error"
@@ -374,7 +469,23 @@ const TeacherAssessments: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        style={{ display: 'none' }}
+        onChange={handlePdfInputChange}
+      />
+
+      <Dialog
+        open={openDialog}
+        onClose={() => {
+          setOpenDialog(false)
+          setPdfFile(null)
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Create assessment (assign to students in a subject)</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -419,13 +530,48 @@ const TeacherAssessments: React.FC = () => {
               fullWidth
             />
             <TextField
-              label="Description"
+              label="Description (questions / instructions)"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v.length <= DESCRIPTION_MAX_CHARS) setFormData({ ...formData, description: v })
+              }}
               fullWidth
               multiline
-              rows={3}
+              rows={6}
+              placeholder="Students read this then submit answers as PDF..."
+              helperText={`${formData.description.length} / ${DESCRIPTION_MAX_CHARS} characters`}
+              inputProps={{ maxLength: DESCRIPTION_MAX_CHARS }}
             />
+            <Box>
+              <Typography variant="body2" sx={{ color: THEME.textDark, fontWeight: 600, mb: 0.5 }}>
+                Question paper PDF (optional)
+              </Typography>
+              <Typography variant="caption" sx={{ color: THEME.muted, display: 'block', mb: 1 }}>
+                Upload a PDF so students can download it from their Assessments page. Only PDF is allowed.
+              </Typography>
+              <Button variant="outlined" component="label" size="small" startIcon={<UploadFileIcon />} sx={{ textTransform: 'none' }}>
+                {pdfFile ? pdfFile.name : 'Choose PDF'}
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f && !f.name.toLowerCase().endsWith('.pdf') && f.type !== 'application/pdf') {
+                      setSnackbar({ open: true, message: 'Only PDF files are allowed.', severity: 'error' })
+                      return
+                    }
+                    setPdfFile(f || null)
+                  }}
+                />
+              </Button>
+              {pdfFile && (
+                <Button size="small" onClick={() => setPdfFile(null)} sx={{ ml: 1, textTransform: 'none' }}>
+                  Clear
+                </Button>
+              )}
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

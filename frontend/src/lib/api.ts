@@ -418,9 +418,8 @@ export async function getWeeklyStudySum(): Promise<WeeklyStudySum | null> {
   }
 }
 
+/** Backend /attendance/me returns only total_days, present_days, attendance_percentage */
 export type AttendanceWithPercentage = {
-  id: number
-  student_id: number
   total_days: number
   present_days: number
   attendance_percentage: number
@@ -502,6 +501,26 @@ export async function getModuleAttendanceSummary(subjectId: string): Promise<Mod
     return await apiRequest<ModuleAttendanceSummary>(`/module-attendance/summary/${encodeURIComponent(subjectId)}`)
   } catch {
     return null
+  }
+}
+
+/** Student: per-subject attendance from teacher module uploads */
+export type MyModuleAttendanceSubject = {
+  subject_id: string
+  subject_name: string
+  present_days: number
+  total_sessions: number
+  planned_sessions: number
+  attendance_percentage: number
+}
+
+export async function getMyModuleAttendance(): Promise<MyModuleAttendanceSubject[]> {
+  try {
+    const raw = await apiRequest<{ subjects?: MyModuleAttendanceSubject[] }>('/module-attendance/me')
+    const list = raw?.subjects
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
   }
 }
 

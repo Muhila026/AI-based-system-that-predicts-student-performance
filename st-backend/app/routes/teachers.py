@@ -31,43 +31,64 @@ def _student_id_from_email(email: str) -> int:
 @router.get("/dashboard")
 async def get_teacher_dashboard(user: dict = Depends(require_role(["teacher", "admin"]))):
     """
-    Basic teacher dashboard stats for the Teacher Dashboard page.
-
-    Uses the authenticated teacher's email to aggregate simple metrics
-    from the courses collection. Can be extended later with richer
-    analytics once more data is available.
+    Basic teacher dashboard stats. Aligns with the rest of the teacher panel:
+    subjects come from teacher_subjects (same as /my-subjects); student counts
+    from student_subjects enrollments for those subjects.
     """
     db = get_database()
 
-    email = (user.get("email") or "").strip()
+    email = (user.get("email") or user.get("sub") or "").strip()
     if not email:
         raise HTTPException(status_code=400, detail="Teacher email missing")
 
-    # Courses where this teacher is the primary teacherId.
-    cursor = db.courses.find(
-        {"teacherId": email},
-        {"_id": 0, "totalEnrolledStudents": 1, "status": 1, "isActive": 1},
-    )
-    courses = await cursor.to_list(1000)
+    email_regex = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+    # Subjects assigned to this teacher (same source as /my-subjects)
+    ts_cursor = db.teacher_subjects.find({"teacher_id": email_regex}, {"_id": 0, "subject_id": 1})
+    subject_ids_raw = []
+    async for doc in ts_cursor:
+        sid = doc.get("subject_id")
+        if sid is not None:
+            subject_ids_raw.append(sid)
+
+    # Distinct subject count (Active Courses == Subjects)
+    seen_subjects = set()
+    for sid in subject_ids_raw:
+        seen_subjects.add(str(sid))
+    active_courses = len(seen_subjects)
+
+    # $in list for student_subjects (subject_id may be stored as str or int)
+    in_values = list(seen_subjects)
+    for sid in subject_ids_raw:
+        if isinstance(sid, str) and sid.isdigit():
+            in_values.append(int(sid))
+        elif isinstance(sid, int):
+            in_values.append(sid)
+            in_values.append(str(sid))
 
     total_students = 0
-    active_courses = 0
-    for c in courses:
-        total_students += int(c.get("totalEnrolledStudents") or 0)
-        status = (c.get("status") or ("Active" if c.get("isActive", True) else "Inactive")).strip().lower()
-        if status != "inactive":
-            active_courses += 1
+    if in_values:
+        student_ids = set()
+        ss_cursor = db.student_subjects.find(
+            {"subject_id": {"$in": in_values}},
+            {"_id": 0, "student_id": 1},
+        )
+        async for doc in ss_cursor:
+            try:
+                student_ids.add(int(doc.get("student_id")))
+            except (TypeError, ValueError):
+                pass
+        total_students = len(student_ids)
 
     stats = [
         {
             "title": "Total Students",
             "value": str(total_students),
-            "change": "Students across your courses",
+            "change": "Unique students in your subjects (student_subjects)",
         },
         {
-            "title": "Active Courses",
+            "title": "Subjects",
             "value": str(active_courses),
-            "change": "Courses you are currently teaching",
+            "change": "Same as My Subjects — subjects assigned to you",
         },
         {
             "title": "Avg Performance",

@@ -22,11 +22,16 @@ import {
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import {
-  getCourses,
+  getTeacherMySubjects,
   getTeacherAssignments,
   getTeacherStudentPerformance,
+  getSchemaStudentSubjects,
 } from '../../lib/api'
-import type { AdminCourse, TeacherStudentPerformanceItem } from '../../lib/api'
+import type {
+  TeacherSubjectWithName,
+  TeacherStudentPerformanceItem,
+  SchemaStudentSubject,
+} from '../../lib/api'
 
 const THEME = {
   primary: '#1e3a8a',
@@ -52,7 +57,8 @@ interface TeacherDashboardProps {
 
 const statConfig = [
   { title: 'Total Students', icon: <People />, color: THEME.primary },
-  { title: 'Active Courses', icon: <School />, color: '#0d9488' },
+  /** Aligned with My Subjects: count = teacher_subjects rows (same as subject list). */
+  { title: 'Subjects', icon: <School />, color: '#0d9488' },
   { title: 'Avg Performance', icon: <TrendingUp />, color: '#b45309' },
   { title: 'Pending Grading', icon: <Grade />, color: '#7c3aed' },
 ]
@@ -60,7 +66,12 @@ const statConfig = [
 const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => {
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<DashboardData>({ stats: [] })
-  const [courses, setCourses] = useState<AdminCourse[]>([])
+  /** Teacher's assigned subjects (same source as My Subjects / Assessments). */
+  const [mySubjects, setMySubjects] = useState<TeacherSubjectWithName[]>([])
+  /** Class Overview bars: subject name + enrolled count + percentage of total. */
+  const [classDistribution, setClassDistribution] = useState<
+    { type: string; count: number; percentage: number }[]
+  >([])
   const [assignments, setAssignments] = useState<any[]>([])
   const [studentPerf, setStudentPerf] = useState<TeacherStudentPerformanceItem[]>([])
 
@@ -71,33 +82,62 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const [coursesRes, assignmentsRes, perfRes] = await Promise.all([
-        getCourses(),
-        getTeacherAssignments(),
-        getTeacherStudentPerformance(),
+      // Each call isolated so one failure does not throw and wipe the whole dashboard
+      const [subjectsRes, assignmentsRes, perfRes, studentSubjectsRes] = await Promise.all([
+        getTeacherMySubjects().catch(() => [] as TeacherSubjectWithName[]),
+        getTeacherAssignments().catch(() => [] as any[]),
+        getTeacherStudentPerformance().catch(() => [] as TeacherStudentPerformanceItem[]),
+        getSchemaStudentSubjects().catch(() => [] as SchemaStudentSubject[]),
       ])
 
-      const coursesArr = Array.isArray(coursesRes) ? coursesRes : []
+      const subjectsArr = Array.isArray(subjectsRes) ? subjectsRes : []
       const assignmentsArr = Array.isArray(assignmentsRes) ? assignmentsRes : []
       const perfArr = Array.isArray(perfRes) ? perfRes : []
+      const studentSubjectsArr = Array.isArray(studentSubjectsRes) ? studentSubjectsRes : []
 
-      // Derive core metrics from real data
-      const classOverviewTemp = coursesArr.map((c) => ({
-        id: (c as any).id ?? (c as any)._id ?? '',
-        class: (c as any).name || (c as any).code || (c as any).courseTitle || 'Unnamed Course',
-        students:
-          typeof (c as any).students === 'number'
-            ? (c as any).students
-            : parseInt(
-                String((c as any).students ?? (c as any).totalEnrolledStudents ?? 0),
-                10
-              ) || 0,
-        status: (c as any).status ?? 'Active',
-      }))
+      // subject_id -> set of student_id (enrollment per subject from student_subjects)
+      const subjectStudentMap: Record<string, Set<number>> = {}
+      studentSubjectsArr.forEach((record) => {
+        const subjectId = String(record.subject_id ?? '').trim()
+        const studentIdNum = Number(record.student_id)
+        if (!subjectId || Number.isNaN(studentIdNum)) return
+        if (!subjectStudentMap[subjectId]) subjectStudentMap[subjectId] = new Set()
+        subjectStudentMap[subjectId].add(studentIdNum)
+      })
+      // Subjects count = same as My Subjects (teacher_subjects rows)
+      const subjectsCount = subjectsArr.length
 
-      const activeCoursesCount = classOverviewTemp.filter(
-        (c) => (c.status || 'Active').toLowerCase() !== 'inactive'
-      ).length
+      // Total students = unique students enrolled in any of the teacher's subjects
+      const teacherSubjectIds = new Set(
+        subjectsArr.map((s) => String(s.subject_id ?? '').trim()).filter(Boolean)
+      )
+      const uniqueStudentIds = new Set<number>()
+      teacherSubjectIds.forEach((subjectId) => {
+        const set = subjectStudentMap[subjectId]
+        if (set) set.forEach((id) => uniqueStudentIds.add(id))
+      })
+      const totalStudentsInSubjects = uniqueStudentIds.size
+
+      // Class Overview: distribution by subject (enrollment from student_subjects)
+      let distribution: { type: string; count: number; percentage: number }[] = []
+      if (subjectsArr.length > 0) {
+        const rows = subjectsArr.map((s) => {
+          const subjectId = String(s.subject_id ?? '').trim()
+          const count =
+            subjectId && subjectStudentMap[subjectId] ? subjectStudentMap[subjectId].size : 0
+          return {
+            type: s.subject_name || subjectId || 'Unnamed subject',
+            count,
+          }
+        })
+        const total = rows.reduce((sum, r) => sum + r.count, 0)
+        distribution = rows.map((r) => ({
+          type: r.type,
+          count: r.count,
+          percentage: total > 0 ? Math.round((r.count / total) * 100) : 0,
+        }))
+      }
+      setClassDistribution(distribution)
 
       const pendingGradingCount = assignmentsArr.filter(
         (a) =>
@@ -113,16 +153,29 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             }, 0) / perfArr.length
           : 0
 
+      // Total students: prefer enrollment in your subjects; fallback to performance list length
+      const totalStudentsValue =
+        totalStudentsInSubjects > 0
+          ? totalStudentsInSubjects
+          : perfArr.length > 0
+            ? perfArr.length
+            : 0
+
       const stats: DashboardStats[] = [
         {
           title: 'Total Students',
-          value: String(perfArr.length),
-          change: 'Students across your classes',
+          value: String(totalStudentsValue),
+          change:
+            totalStudentsInSubjects > 0
+              ? 'Unique students enrolled in your subjects'
+              : perfArr.length > 0
+                ? 'Students with performance records'
+                : 'No students yet — assign subjects and enrollments',
         },
         {
-          title: 'Active Courses',
-          value: String(activeCoursesCount),
-          change: 'Courses you are currently teaching',
+          title: 'Subjects',
+          value: String(subjectsCount),
+          change: 'Subjects assigned to you (My Subjects)',
         },
         {
           title: 'Avg Performance',
@@ -130,7 +183,10 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             perfArr.length > 0
               ? `${avgPerformance.toFixed(1).replace(/\.0$/, '')}%`
               : '—',
-          change: perfArr.length > 0 ? 'Average total score of your students' : 'No performance data yet',
+          change:
+            perfArr.length > 0
+              ? 'Average total score of your students'
+              : 'No performance data yet',
         },
         {
           title: 'Pending Grading',
@@ -140,7 +196,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
       ]
 
       setDashboardData({ stats })
-      setCourses(coursesArr)
+      setMySubjects(subjectsArr)
       setAssignments(assignmentsArr)
       setStudentPerf(perfArr)
     } catch (error) {
@@ -148,12 +204,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
       setDashboardData({
         stats: [
           { title: 'Total Students', value: '—', change: '—' },
-          { title: 'Active Courses', value: '—', change: '—' },
+          { title: 'Subjects', value: '—', change: '—' },
           { title: 'Avg Performance', value: '—', change: '—' },
           { title: 'Pending Grading', value: '—', change: '—' },
         ],
       })
-      setCourses([])
+      setMySubjects([])
+      setClassDistribution([])
       setAssignments([])
     } finally {
       setLoading(false)
@@ -164,7 +221,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
     ? dashboardData.stats
     : [
         { title: 'Total Students', value: '—', change: '—' },
-        { title: 'Active Courses', value: '—', change: '—' },
+        { title: 'Subjects', value: '—', change: '—' },
         { title: 'Avg Performance', value: '—', change: '—' },
         { title: 'Pending Grading', value: '—', change: '—' },
       ]
@@ -188,21 +245,6 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
           }
         })
       : []
-
-  const classOverview = courses.map((c) => ({
-    id: c.id ?? (c as any)._id ?? '',
-    class: c.name || (c as any).code || (c as any).courseTitle || 'Unnamed Course',
-    students: typeof c.students === 'number' ? c.students : parseInt(String((c as any).students ?? (c as any).totalEnrolledStudents ?? 0), 10) || 0,
-    avgScore: 0,
-    status: (c as any).status ?? 'Active',
-  }))
-  const activeCourses = classOverview.filter((c) => (c.status || 'Active').toLowerCase() !== 'inactive')
-  const totalStudents = activeCourses.reduce((sum, c) => sum + c.students, 0)
-  const classDistribution = activeCourses.map((cls) => ({
-    type: cls.class,
-    count: cls.students,
-    percentage: totalStudents > 0 ? Math.round((cls.students / totalStudents) * 100) : 0,
-  }))
 
   const handleQuickAction = (page: string) => {
     if (onSelectPage) onSelectPage(page)
@@ -331,7 +373,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onSelectPage }) => 
             </Box>
             {classDistribution.length === 0 ? (
               <Typography variant="body2" sx={{ color: THEME.muted }}>
-                No courses assigned.
+                No subjects assigned. Open My Subjects or contact admin to assign subjects.
               </Typography>
             ) : (
               classDistribution.map((item, index) => {

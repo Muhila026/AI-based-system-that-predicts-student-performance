@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -5,9 +6,77 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth import require_role
 from app.database import get_database
-from app.routes.schema_collections import _teacher_teaches_subject
+from app.routes.schema_collections import _teacher_teaches_subject, _student_enrolled_in_subject
 
 router = APIRouter(prefix="/api/v1/module-attendance", tags=["Module Attendance"])
+
+
+@router.get("/me")
+async def get_my_module_attendance(user: dict = Depends(require_role(["student", "admin", "teacher"]))):
+    """
+    Student: per-subject attendance from module_attendance (teacher uploads per subject).
+    Returns one row per enrolled subject with present_days, planned_sessions, attendance_percentage.
+    Teachers/admins get empty list unless we later extend.
+    """
+    db = get_database()
+    role = (user.get("role") or user.get("user_role") or "").strip().lower()
+    email = (user.get("email") or user.get("sub") or "").strip()
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if role != "student":
+        return {"subjects": []}
+
+    email_regex = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+    cursor = db.student_subjects.find({"student_id": email_regex}, {"subject_id": 1})
+    subject_ids = []
+    async for doc in cursor:
+        sid = doc.get("subject_id")
+        if sid and sid not in subject_ids:
+            subject_ids.append(sid)
+
+    out = []
+    for subject_id in subject_ids:
+        if not await _student_enrolled_in_subject(db, email, subject_id):
+            continue
+        subject = await db.subjects.find_one({"_id": subject_id}, {"subject_name": 1, "attendance_days": 1})
+        if not subject:
+            continue
+        subject_name = subject.get("subject_name") or subject_id
+        planned_sessions = int(subject.get("attendance_days") or 0)
+        dates = await db.module_attendance.distinct("date", {"subject_id": subject_id})
+        dates = sorted(dates)
+        total_sessions = len(dates)
+        if planned_sessions <= 0:
+            planned_sessions = max(total_sessions, 1)
+
+        present_days = 0
+        seen_dates = set()
+        email_regex_att = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+        mcursor = db.module_attendance.find(
+            {"subject_id": subject_id, "student_email": email_regex_att, "present": True}
+        )
+        async for doc in mcursor:
+            d = (doc.get("date") or "").strip()
+            if d and d not in seen_dates:
+                seen_dates.add(d)
+                present_days += 1
+
+        if planned_sessions > 0:
+            pct = round((present_days / planned_sessions) * 100.0, 1)
+        else:
+            pct = 0.0
+        pct = min(100.0, max(0.0, pct))
+
+        out.append({
+            "subject_id": subject_id,
+            "subject_name": subject_name,
+            "present_days": present_days,
+            "total_sessions": total_sessions,
+            "planned_sessions": planned_sessions,
+            "attendance_percentage": pct,
+        })
+
+    return {"subjects": out}
 
 
 def _now_iso() -> str:

@@ -2,6 +2,7 @@
 Attendance for ML: daily upload by teacher → attendance_percentage = (present_days/total_days)*100 per student.
 Uses attendance_daily collection keyed by userEmail and date.
 """
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timedelta
 
@@ -22,12 +23,14 @@ async def get_my_attendance(user: dict = Depends(get_current_user)):
     """
     Current user's attendance: total_days = count of dates, present_days = count present.
     attendance_percentage = (present_days/total_days)*100.
+    Matches userEmail case-insensitively (JWT may use sub for email).
     """
     db = get_database()
-    email = user.get("email")
+    email = (user.get("email") or user.get("sub") or "").strip()
     if not email:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    cursor = db.attendance_daily.find({"userEmail": email})
+    email_regex = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+    cursor = db.attendance_daily.find({"userEmail": email_regex})
     total_days = 0
     present_days = 0
     async for doc in cursor:
@@ -73,7 +76,10 @@ async def upload_daily_attendance(
     user: dict = Depends(require_role(["TEACHER", "ADMIN"])),
 ):
     """
-    Record who was present on a given date. present_student_ids are from /attendance/student-list.
+    Record attendance for **all** students on a given date.
+    present_student_ids are from /attendance/student-list; everyone else is stored as absent.
+    This makes /attendance/me total_days = sessions taken and present_days = actual presents
+    so attendance_percentage is correct (not always 100%).
     """
     db = get_database()
     date_str = request.date or datetime.utcnow().date().isoformat()
@@ -87,14 +93,26 @@ async def upload_daily_attendance(
     id_to_email = {_student_id_from_email(u["email"]): u["email"] for u in users}
 
     updated = 0
-    for sid in present_ids:
-        email = id_to_email.get(sid)
+    present_count = 0
+    absent_count = 0
+    # One document per student per date: present True/False so percentage is meaningful
+    for sid, email in id_to_email.items():
         if not email:
             continue
+        is_present = sid in present_ids
         await db.attendance_daily.update_one(
             {"userEmail": email, "date": date_str},
-            {"$set": {"userEmail": email, "date": date_str, "present": True}},
+            {"$set": {"userEmail": email, "date": date_str, "present": is_present}},
             upsert=True,
         )
         updated += 1
-    return {"date": date_str, "students_updated": updated}
+        if is_present:
+            present_count += 1
+        else:
+            absent_count += 1
+    return {
+        "date": date_str,
+        "students_updated": updated,
+        "marked_present": present_count,
+        "marked_absent": absent_count,
+    }
